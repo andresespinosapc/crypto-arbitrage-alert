@@ -23,6 +23,7 @@ def main(conn):
             r = requests.get('https://bittrex.com/api/v1.1/public/getticker', params={'market': 'ETH-STORJ'})
             data = r.json()
             if data['success']:
+                data = data['result']
                 if data['Ask'] > 0 or data['Bid'] > 0 or data['Last'] > 0:
                     params = {
                         'chat_id': 8834684,
