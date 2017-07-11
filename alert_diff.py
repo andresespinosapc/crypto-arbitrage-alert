@@ -20,20 +20,20 @@ def main(conn):
             print('\n{}'.format(time.strftime('%H:%M:%S %d/%m')))
 
             # Ver si hay STORJ en bittrex
-            r = requests.get('https://bittrex.com/api/v1.1/public/getticker', params={'market': 'ETH-STORJ'})
-            data = r.json()
-            if data['success']:
-                data = data['result']
-                if data is not None:
-                    if data['Ask'] > 0 or data['Bid'] > 0 or data['Last'] > 0:
-                        params = {
-                            'chat_id': 8834684,
-                            'text': 'SALIO STORJ!!!!!'
-                        }
-                        for i in range(15):
-                            for j in range(10):
-                                requests.get('https://api.telegram.org/bot423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU/sendMessage', params=params)
-                            time.sleep(5)
+            # r = requests.get('https://bittrex.com/api/v1.1/public/getticker', params={'market': 'ETH-STORJ'})
+            # data = r.json()
+            # if data['success']:
+            #     data = data['result']
+            #     if data is not None:
+            #         if data['Ask'] > 0 or data['Bid'] > 0 or data['Last'] > 0:
+            #             params = {
+            #                 'chat_id': 8834684,
+            #                 'text': 'SALIO STORJ!!!!!'
+            #             }
+            #             for i in range(15):
+            #                 for j in range(10):
+            #                     requests.get('https://api.telegram.org/bot423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU/sendMessage', params=params)
+            #                 time.sleep(5)
 
             # Get data from EtherDelta
             r = requests.get('https://cache1.etherdelta.com/returnTicker')
