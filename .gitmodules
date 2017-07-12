@@ -1,6 +1,6 @@
 [submodule "etherdelta.github.io"]
 	path = etherdelta.github.io
-	url = https://andresespinosapc@bitbucket.org/andresespinosapc/etherdelta.github.io.git
+	url = git@bitbucket.org:andresespinosapc/etherdelta.github.io.git
 [submodule "keeper"]
 	path = keeper
 	url = https://github.com/makerdao/keeper.git
