@@ -1,6 +1,7 @@
 const Tx = require('ethereumjs-tx')
 const Web3 = require('web3')
 const ethUtil = require('ethereumjs-util')
+const websites = require('./websites.js');
 const defaultGasPrice = '0x77359400' // 2 gWei
 const defaultGasLimit = '0x286a0' // 100.000
 
@@ -31,6 +32,36 @@ TS.transact = function(privateKey, to, value=0, nonce=null, gasPrice=defaultGasP
   var serializedTx = tx.serialize()
   txHash = this.web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'))
   return txHash
+}
+
+TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, callback) {
+  initialWebsite.withdraw(currency, value, this.address, (err) => {
+    if (err) callback(err);
+    else {
+      console.log('Withdrawal successful');
+      // Get current balance from the final website
+      finalWebsite.getBalance(currency, (err, initialBalance) => {
+        if (err) callback(err);
+        else {
+          console.log('Initial balance:', initialBalance);
+          let hash = TS.transact(this.privateKey, finalWebsite.getDepositAddress(currency), value=value);
+          console.log('Transaction hash:', hash);
+          let interval = setInterval(() => {
+            finalWebsite.getBalance(currency, (err, currentBalance) => {
+              if (err) callback(err);
+              else {
+                if (currentBalance > balance) {
+                  console.log('Deposit successful');
+                  clearInterval(interval);
+                  callback(null);
+                }
+              }
+            });
+          }, 60000);
+        }
+      });
+    }
+  });
 }
 
 module.exports = TS

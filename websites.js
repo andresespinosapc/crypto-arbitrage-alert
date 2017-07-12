@@ -65,8 +65,8 @@ class Bittrex {
         let interval = setInterval(() => {
           this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
             currency: currency
-          }, (err2, response2, body2) => {
-            if (err2) return null;
+          }, (err, response2, body2) => {
+            if (err) return null;
             else {
               let found = JSON.parse(body2).result.find((elem) => {
                 return elem.PaymentUuid == uuid;
@@ -84,9 +84,33 @@ class Bittrex {
 }
 
 class Liqui {
-  constructor(apiKey, secretkey) {
+  constructor(apiKey, secretkey, depositAddresses) {
     this.apiKey = apiKey;
     this.secretKey = secretKey;
+    this.depositAddresses = depositAddresses;
+  }
+
+  request(uri, qs, callback) {
+    let nonce = this.getNonce();
+    qs = '?' + querystring.stringify(qs);
+    let sign = crypto.createHmac('sha512', this.secretKey).update(qs).digest('hex');
+    uri = uri + qs;
+
+    let options = {
+      uri: uri,
+      headers: {
+        'Key': this.apiKey,
+        'Sign': sign
+      }
+    }
+
+    request(options, (err, response, body) => {
+      callback(err, response, body);
+    });
+  }
+
+  getDepositAddress(currency, callback) {
+    return this.depositAddresses;
   }
 
   getBalances(callback) {
@@ -110,25 +134,6 @@ class Liqui {
         let balance = balances[currency];
         callback(null, balance);
       }
-    });
-  }
-
-  request(uri, qs, callback) {
-    let nonce = this.getNonce();
-    qs = '?' + querystring.stringify(qs);
-    let sign = crypto.createHmac('sha512', this.secretKey).update(qs).digest('hex');
-    uri = uri + qs;
-
-    let options = {
-      uri: uri,
-      headers: {
-        'Key': this.apiKey,
-        'Sign': sign
-      }
-    }
-
-    request(options, (err, response, body) => {
-      callback(err, response, body);
     });
   }
 }
@@ -161,4 +166,5 @@ class Kraken {
   }
 }
 
-module.exports = {Bittrex};
+
+module.exports = {Bittrex, Liqui};
