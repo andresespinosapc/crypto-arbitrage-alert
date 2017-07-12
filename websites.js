@@ -2,6 +2,7 @@ const request = require('request');
 const crypto = require('crypto');
 const querystring = require('querystring');
 
+
 class Bittrex {
   constructor(apiKey, secretKey) {
     this.apiKey = apiKey;
@@ -61,7 +62,22 @@ class Bittrex {
       if (err) callback(err);
       else {
         let uuid = JSON.parse(body).result.uuid;
-        callback(null, uuid);
+        let interval = setInterval(() => {
+          this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
+            currency: currency
+          }, (err2, response2, body2) => {
+            if (err2) return null;
+            else {
+              let found = JSON.parse(body2).result.find((elem) => {
+                return elem.PaymentUuid == uuid;
+              });
+              if (found) {
+                clearInterval(interval);
+                callback(null);
+              }
+            }
+          });
+        }, 60000);
       }
     });
   }
@@ -134,3 +150,5 @@ class Kraken {
     });
   }
 }
+
+module.exports = {Bittrex};
