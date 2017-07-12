@@ -103,6 +103,16 @@ class Liqui {
     });
   }
 
+  getBalance(currency, callback) {
+    this.getBalances((err, balances) => {
+      if (err) callback(err);
+      else {
+        let balance = balances[currency];
+        callback(null, balance);
+      }
+    });
+  }
+
   request(uri, qs, callback) {
     let nonce = this.getNonce();
     qs = '?' + querystring.stringify(qs);
