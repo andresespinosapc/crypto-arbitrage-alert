@@ -8,7 +8,11 @@ const utils = require('./utils.js');
 
 
 class Website {
-  deposit(transactor, currency, value, callback) {
+  constructor(transactor) {
+    this.transactor = transactor;
+  }
+
+  deposit(currency, value, callback) {
     this.getBalance(currency, (err, initialBalance) => {
       if (err) callback(err);
       else {
@@ -16,7 +20,7 @@ class Website {
         this.getDepositAddress(currency, (err, depositAddress) => {
           if (err) callback(err);
           else {
-            let hash = transactor.transact(depositAddress, value);
+            let hash = this.transactor.transact(depositAddress, value);
             console.log('Transaction hash:', hash);
             let interval = setInterval(() => {
               this.getBalance(currency, (err, currentBalance) => {
@@ -36,57 +40,78 @@ class Website {
   }
 }
 
-class EtherDelta {
-  constructor(transactor) {
-    this.transactor = transactor;
+class EtherDelta extends Website{
+  constructor(transactor, callback) {
+    super(transactor);
     this.config = config;
     utility.loadContract(
       transactor.web3,
       'etherdelta.github.io/smart_contract/etherdelta.sol',
-      this.config.contractEtherDeltaAddrs[0],
+      this.config.contractEtherDeltaAddrs[0].addr,
       (err, contract) => {
-        console.log('EtherDelta ether contract loaded');
-        this.contractEtherDelta = contract;
-        utility.loadContract(
-          transactor.web3,
-          'etherdelta.github.io/smart_contract/token.sol',
-          this.config.ethAddr,
-          (err, contract) => {
-            console.log('EtherDelta token contract loaded');
-            this.contractToken = contract;
-          }
+        if (err) callback(err);
+        else {
+          console.log('EtherDelta ether contract loaded');
+          this.contractEtherDelta = contract;
+          utility.loadContract(
+            transactor.web3,
+            'etherdelta.github.io/smart_contract/token.sol',
+            this.config.ethAddr,
+            (err, contract) => {
+              if (err) callback(err);
+              else {
+                console.log('EtherDelta token contract loaded');
+                this.contractToken = contract;
+                callback(undefined, this);
+              }
+            }
           );
-      });
+        }
+    });
   }
 
   getBalance() {
 
   }
 
-  deposit(tokenAddr, amount, callback) {
-    amount = new BigNumber(Number(utility.ethToWei(amount, this.getDivisor(tokenAddr))));
-    const token = utils.getToken(tokenAddr);
+  getDivisor(tokenOrAddress) {
+    let result = 1000000000000000000;
+    const token = utils.getToken(tokenOrAddress);
+    if (token && token.decimals !== undefined) {
+      result = Math.pow(10, token.decimals); // eslint-disable-line no-restricted-properties
+    }
+    return new BigNumber(result);
+  };
+
+  deposit(currency, value, callback) {
+    const token = utils.getToken(currency);
+    const tokenAddr = token.addr;
+    let amount = new BigNumber(Number(utility.ethToWei(value, this.getDivisor(tokenAddr))));
     if (amount.lte(0)) {
       callback('Invalid deposit amount');
       return;
     }
     if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
       this.transactor.getBalance((err, result) => {
+        if (err) callback(err);
         if (amount.gt(result) && amount.lt(result.times(new BigNumber(1.1)))) amount = result;
         if (amount.lte(result)) {
           utility.send(
             this.transactor.web3,
             this.contractEtherDelta,
-            this.config.contractEtherDeltaAddrs[0],
+            this.config.contractEtherDeltaAddrs[0].addr,
             'deposit',
             [{ gas: this.config.gasDeposit, value: amount.toNumber() }],
             this.transactor.address,
             this.transactor.privateKey,
             this.nonce,
             (errSend, resultSend) => {
-              this.nonce = resultSend.nonce;
-              // TODO
-              this.addPending(errSend, { txHash: resultSend.txHash });
+              if (errSend) callback(errSend);
+              else {
+                this.nonce = resultSend.nonce;
+                // TODO
+                console.log('Transaction hash:', resultSend.txHash);
+              }
             });
         } else {
           callback("You don't have enough Ether");
@@ -153,11 +178,16 @@ class EtherDelta {
                     },
                   ],
                   (err, results) => {
-                    const [tx1, tx2] = results;
-                    const errSend1 = tx1 ? tx1.errSend1 : undefined;
-                    const errSend2 = tx2 ? tx2.errSend1 : undefined;
-                    // TODO
-                    this.addPending(errSend1 || errSend2, txs);
+                    if (err) callback(err);
+                    else {
+                      const [tx1, tx2] = results;
+                      const errSend1 = tx1 ? tx1.errSend1 : undefined;
+                      const errSend2 = tx2 ? tx2.errSend1 : undefined;
+                      // TODO
+                      ts.forEach((resultSend, index) => {
+                        console.log('Transaction', index, 'hash:', resultSend.txHash);
+                      });
+                    }
                   });
               } else {
                 callback("You don't have enough tokens");
@@ -169,8 +199,8 @@ class EtherDelta {
 }
 
 class Bittrex extends Website {
-  constructor(apiKey, secretKey) {
-    super();
+  constructor(transactor, apiKey, secretKey) {
+    super(transactor);
     this.apiKey = apiKey;
     this.secretKey = secretKey;
   }
@@ -254,8 +284,8 @@ class Bittrex extends Website {
 }
 
 class Liqui extends Website {
-  constructor(apiKey, secretKey, depositAddresses) {
-    super();
+  constructor(transactor, apiKey, secretKey, depositAddresses) {
+    super(transactor);
     this.apiKey = apiKey;
     this.secretKey = secretKey;
     this.depositAddresses = depositAddresses;
@@ -310,8 +340,8 @@ class Liqui extends Website {
 }
 
 class Kraken extends Website {
-  constructor(apiKey, secretKey) {
-    super();
+  constructor(transactor, apiKey, secretKey) {
+    super(transactor);
     this.apiKey = apiKey;
     this.secretKey = secretKey;
   }
@@ -339,4 +369,8 @@ class Kraken extends Website {
 }
 
 
-module.exports = {Bittrex, Liqui};
+module.exports = {
+  Bittrex,
+  Liqui,
+  EtherDelta
+};
