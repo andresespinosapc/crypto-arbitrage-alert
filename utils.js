@@ -1,13 +1,19 @@
+const BigNumber = require('bignumber.js');
 
 function utils() {}
 
 utils.amountToarg = function(amount, decimals)
 {
-  const BigNumber = require('bignumber.js');
   var bn = new BigNumber(amount).times(Math.pow(10, decimals));
   bn = bn.floor()
   return '0x' + bn.toString(16)
 }
+
+utils.argToAmount = function(arg, decimals)
+{
+  return new BigNumber(arg).dividedBy(Math.pow(10, decimals))
+}
+
 
 utils.getTokenContract = function(identifier)
 {
@@ -21,9 +27,10 @@ utils.getAbi = function(identifier)
 
 utils.getToken = function getToken(identifier)
 {
+  const lowId = identifier.toLowerCase()
   tokens = require('./tokens/tokens').tokens
   return tokens.find(function(value){
-    return value.addr === identifier || value.name === identifier
+    return value.addr === lowId || value.name === identifier
   })
   return null;
 }

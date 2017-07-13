@@ -6,6 +6,7 @@ const ethUtil = require('ethereumjs-util')
 const websites = require('./websites.js');
 const defaultGasPrice = 2 // 2 gWei
 const defaultGasLimit = 100000 // 100.000
+const ethAddress =0x0000000000000000000000000000000000000000
 
 function TS() {}
 
@@ -14,6 +15,24 @@ TS.init = function(provider, privateKey)
   this.web3 = new Web3(new Web3.providers.HttpProvider(provider))
   this.privateKey = privateKey
   this.address = '0x' + ethUtil.privateToAddress(privateKey).toString('hex')
+}
+
+TS.getBalance = function(tokenAddress=ethAddress, funcName='balanceOf')
+{
+  if(tokenAddress===ethAddress) return this.ethBalance()
+
+  var token = utils.getToken(tokenAddress)
+  var abi = utils.getAbi(token.addr)
+  var contract = this.web3.eth.contract(abi)
+  var ci = contract.at(token.addr)
+  var func = ci[funcName]
+  var data = func.getData(this.address)
+  return utils.argToAmount(this.web3.eth.call({to:token.addr, data:data}), token.decimals)
+}
+
+TS.ethBalance = function()
+{
+  return new BigNumber(this.web3.fromWei(this.web3.eth.getBalance(this.address), 'ether'))
 }
 
 TS.transact = function(to, value, {gasPrice=defaultGasPrice, gasLimit=defaultGasLimit, data='', nonce=null}={})
