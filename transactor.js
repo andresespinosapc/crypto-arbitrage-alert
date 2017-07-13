@@ -41,7 +41,6 @@ TS.sendToken = function(tokenIdentifier, to, amount, {funcName='transfer',
                         nonce=null}={})
 {
   var token = utils.getToken(tokenIdentifier)
-  console.log(token)
   if(token === null)
   {
     console.log('Token ' + tokenIdentifier + ' not found')
@@ -52,9 +51,8 @@ TS.sendToken = function(tokenIdentifier, to, amount, {funcName='transfer',
   var ci = contract.at(token.addr)
   var func = ci[funcName]
   amount = utils.amountToarg(amount, token.decimals)
-  console.log(amount)
   var callData = func.getData(to, amount)
-  return this.transact(token.addr, value, {data:callData, gasPrice,
+  return this.transact(token.addr, value, {data:callData, gasPrice:gasPrice,
                         gasLimit:gasLimit, nonce:nonce})
 }
 
