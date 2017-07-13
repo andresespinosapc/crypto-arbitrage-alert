@@ -2,13 +2,15 @@ const request = require('request');
 const crypto = require('crypto');
 const querystring = require('querystring');
 const BigNumber = require('bignumber.js');
-const utility = require('./etherdelta.github.io/common/utility.js');
+const config = require('./etherdelta.github.io/config.js')
+const utility = require('./etherdelta.github.io/common/utility.js')(config); // eslint-disable-line global-require
+const utils = require('./utils.js');
 
 
 class EtherDelta {
   constructor(transactor) {
     this.transactor = transactor;
-    this.config = require('./etherdelta.github.io/config.js');
+    this.config = config;
     utility.loadContract(
       transactor.web3,
       'etherdelta.github.io/smart_contract/etherdelta.sol',
@@ -28,83 +30,54 @@ class EtherDelta {
       });
   }
 
-  getToken(addrOrToken, name, decimals) {
-    let result;
-    const lowerAddrOrToken = typeof addrOrToken === 'string' ? addrOrToken.toLowerCase() : addrOrToken;
-    const matchingTokens = this.config.tokens.filter(
-      x => x.addr.toLowerCase() === lowerAddrOrToken ||
-      x.name === addrOrToken);
-    const expectedKeys = JSON.stringify([
-      'addr',
-      'decimals',
-      'name',
-    ]);
-    if (matchingTokens.length > 0) {
-      result = matchingTokens[0];
-    } else if (this.selectedToken.addr.toLowerCase() === lowerAddrOrToken) {
-      result = this.selectedToken;
-    } else if (this.selectedBase.addr.toLowerCase() === lowerAddrOrToken) {
-      result = this.selectedBase;
-    } else if (addrOrToken && addrOrToken.addr &&
-    JSON.stringify(Object.keys(addrOrToken).sort()) === expectedKeys) {
-      result = addrOrToken;
-    } else if (typeof addrOrToken === 'string' && addrOrToken.slice(0, 2) === '0x' && name && decimals >= 0) {
-      result = JSON.parse(JSON.stringify(this.config.tokens[0]));
-      result.addr = lowerAddrOrToken;
-      result.name = name;
-      result.decimals = decimals;
-    }
-    return result;
-  };
-
   getBalance() {
 
   }
 
   deposit(tokenAddr, amount, callback) {
     amount = new BigNumber(Number(utility.ethToWei(amount, this.getDivisor(tokenAddr))));
-    const token = this.getToken(tokenAddr);
+    const token = utils.getToken(tokenAddr);
     if (amount.lte(0)) {
       callback('Invalid deposit amount');
       return;
     }
     if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
-      utility.send(
-        this.web3,
-        this.contractEtherDelta,
-        this.config.contractEtherDeltaAddrs[0],
-        'deposit',
-        [{ gas: this.config.gasDeposit, value: amount.toNumber() }],
-        this.addrs[this.selectedAccount],
-        this.pks[this.selectedAccount],
-        this.nonce,
-        (errSend, resultSend) => {
-          this.nonce = resultSend.nonce;
-          this.addPending(errSend, { txHash: resultSend.txHash });
-          this.alertTxResult(errSend, resultSend);
-          ga('send', {
-            hitType: 'event',
-            eventCategory: 'Action',
-            eventAction: 'Deposit',
-            eventLabel: token.name,
-            eventValue: inputAmount,
-          });
-        });
+      this.transactor.getBalance((err, result) => {
+        if (amount.gt(result) && amount.lt(result.times(new BigNumber(1.1)))) amount = result;
+        if (amount.lte(result)) {
+          utility.send(
+            this.transactor.web3,
+            this.contractEtherDelta,
+            this.config.contractEtherDeltaAddrs[0],
+            'deposit',
+            [{ gas: this.config.gasDeposit, value: amount.toNumber() }],
+            this.transactor.address,
+            this.transactor.privateKey,
+            this.nonce,
+            (errSend, resultSend) => {
+              this.nonce = resultSend.nonce;
+              // TODO
+              this.addPending(errSend, { txHash: resultSend.txHash });
+            });
+        } else {
+          callback("You don't have enough Ether");
+        }
+      });
     } else {
       utility.call(
-        this.web3,
+        this.transactor.web3,
         this.contractToken,
         token.addr,
         'allowance',
-        [this.addrs[this.selectedAccount], this.config.contractEtherDeltaAddr],
+        [this.transactor.address, this.config.contractEtherDeltaAddr],
         (errAllowance, resultAllowance) => {
           if (resultAllowance.gt(0) && amount.gt(resultAllowance)) amount = resultAllowance;
           utility.call(
-            this.web3,
+            this.transactor.web3,
             this.contractToken,
             token.addr,
             'balanceOf',
-            [this.addrs[this.selectedAccount]],
+            [this.transactor.address],
             (errBalanceOf, resultBalanceOf) => {
               if (amount.gt(resultBalanceOf) &&
                 amount.lt(resultBalanceOf.times(new BigNumber(1.1)))) amount = resultBalanceOf;
@@ -115,14 +88,14 @@ class EtherDelta {
                     (callbackSeries) => {
                       if (resultAllowance.eq(0)) {
                         utility.send(
-                          this.web3,
+                          this.transactor.web3,
                           this.contractToken,
-                          addr,
+                          tokenAddr,
                           'approve',
                           [this.config.contractEtherDeltaAddr, amount,
                             { gas: this.config.gasApprove, value: 0 }],
-                          this.addrs[this.selectedAccount],
-                          this.pks[this.selectedAccount],
+                          this.transactor.address,
+                          this.transactor.privateKey,
                           this.nonce,
                           (errSend, resultSend) => {
                             this.nonce = resultSend.nonce;
@@ -135,13 +108,13 @@ class EtherDelta {
                     },
                     (callbackSeries) => {
                       utility.send(
-                        this.web3,
+                        this.transactor.web3,
                         this.contractEtherDelta,
                         this.config.contractEtherDeltaAddr,
                         'depositToken',
-                        [addr, amount, { gas: this.config.gasDeposit, value: 0 }],
-                        this.addrs[this.selectedAccount],
-                        this.pks[this.selectedAccount],
+                        [tokenAddr, amount, { gas: this.config.gasDeposit, value: 0 }],
+                        this.transactor.address,
+                        this.transactor.privateKey,
                         this.nonce,
                         (errSend, resultSend) => {
                           this.nonce = resultSend.nonce;
@@ -154,25 +127,11 @@ class EtherDelta {
                     const [tx1, tx2] = results;
                     const errSend1 = tx1 ? tx1.errSend1 : undefined;
                     const errSend2 = tx2 ? tx2.errSend1 : undefined;
+                    // TODO
                     this.addPending(errSend1 || errSend2, txs);
-                    this.alertTxResult(errSend1 || errSend2, txs);
-                    ga('send', {
-                      hitType: 'event',
-                      eventCategory: 'Action',
-                      eventAction: 'Deposit',
-                      eventLabel: token.name,
-                      eventValue: inputAmount,
-                    });
                   });
               } else {
-                this.dialogError("You can't deposit more tokens than you have.");
-                ga('send', {
-                  hitType: 'event',
-                  eventCategory: 'Error',
-                  eventAction: 'Deposit - not enough balance',
-                  eventLabel: token.name,
-                  eventValue: inputAmount,
-                });
+                callback("You don't have enough tokens");
               }
             });
         });
