@@ -7,6 +7,35 @@ const utility = require('./etherdelta.github.io/common/utility.js')(config); // 
 const utils = require('./utils.js');
 
 
+class Website {
+  deposit(transactor, currency, value, callback) {
+    this.getBalance(currency, (err, initialBalance) => {
+      if (err) callback(err);
+      else {
+        console.log('Initial balance:', initialBalance);
+        this.getDepositAddress(currency, (err, depositAddress) => {
+          if (err) callback(err);
+          else {
+            let hash = transactor.transact(depositAddress, value);
+            console.log('Transaction hash:', hash);
+            let interval = setInterval(() => {
+              this.getBalance(currency, (err, currentBalance) => {
+                if (err) callback(err);
+                else {
+                  if (currentBalance > initialBalance) {
+                    clearInterval(interval);
+                    callback(null);
+                  }
+                }
+              });
+            }, 60000);
+          }
+        });
+      }
+    });
+  }
+}
+
 class EtherDelta {
   constructor(transactor) {
     this.transactor = transactor;
@@ -18,7 +47,7 @@ class EtherDelta {
       (err, contract) => {
         console.log('EtherDelta ether contract loaded');
         this.contractEtherDelta = contract;
-        utility.loadContract(,
+        utility.loadContract(
           transactor.web3,
           'etherdelta.github.io/smart_contract/token.sol',
           this.config.ethAddr,
@@ -139,18 +168,20 @@ class EtherDelta {
   }
 }
 
-class Bittrex {
+class Bittrex extends Website {
   constructor(apiKey, secretKey) {
+    super();
     this.apiKey = apiKey;
     this.secretKey = secretKey;
   }
 
   request(uri, qs, callback) {
     let nonce = new Date().getTime();
-    uri = uri + '?' + querystring.stringify({
+    let params = Object.assign(qs, {
       apikey: this.apiKey,
       nonce: nonce
     });
+    uri = uri + '?' + querystring.stringify(params);
     let sign = crypto.createHmac('sha512', this.secretKey).update(uri).digest('hex');
 
     let options = {
@@ -169,9 +200,10 @@ class Bittrex {
     this.request('https://bittrex.com/api/v1.1/account/getdepositaddress', {
       currency: currency
     }, (err, response, body) => {
-      if (err) callback(err);
+      let res = JSON.parse(body);
+      if (err || !res.success) callback(res.message);
       else {
-        let address = JSON.parse(body).result.Address;
+        let address = res.result.Address;
         callback(null, address);
       }
     });
@@ -181,9 +213,10 @@ class Bittrex {
     this.request('https://bittrex.com/api/v1.1/account/getbalance', {
       currency: currency
     }, (err, response, body) => {
-      if (err) callback(err);
+      let res = JSON.parse(body);
+      if (!res.success) callback(res.message);
       else {
-        let balance = JSON.parse(body).result.Balance;
+        let balance = res.result.Balance;
         callback(null, balance);
       }
     });
@@ -219,8 +252,9 @@ class Bittrex {
   }
 }
 
-class Liqui {
-  constructor(apiKey, secretkey, depositAddresses) {
+class Liqui extends Website {
+  constructor(apiKey, secretKey, depositAddresses) {
+    super();
     this.apiKey = apiKey;
     this.secretKey = secretKey;
     this.depositAddresses = depositAddresses;
@@ -274,8 +308,9 @@ class Liqui {
   }
 }
 
-class Kraken {
+class Kraken extends Website {
   constructor(apiKey, secretKey) {
+    super();
     this.apiKey = apiKey;
     this.secretKey = secretKey;
   }
