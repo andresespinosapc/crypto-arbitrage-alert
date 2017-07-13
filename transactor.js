@@ -35,4 +35,6 @@ TS.transact = function({to, value=0, gasPrice=defaultGasPrice, gasLimit=defaultG
   txHash = this.web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'))
 }
 
+TS.sendToken = function({tokenAddress}){}
+
 module.exports = TS
