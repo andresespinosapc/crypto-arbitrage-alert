@@ -192,16 +192,18 @@ class Bittrex extends Website {
     }
 
     request(options, (err, response, body) => {
-      callback(err, response, body);
+      let res = JSON.parse(body);
+      if (err) callback(err);
+      else if (!res.success) callback(res.message);
+      else callback(null, res);
     });
   }
 
   getDepositAddress(currency, callback) {
     this.request('https://bittrex.com/api/v1.1/account/getdepositaddress', {
       currency: currency
-    }, (err, response, body) => {
-      let res = JSON.parse(body);
-      if (err || !res.success) callback(res.message);
+    }, (err, res) => {
+      if (err) callback(err);
       else {
         let address = res.result.Address;
         callback(null, address);
@@ -212,9 +214,8 @@ class Bittrex extends Website {
   getBalance(currency, callback) {
     this.request('https://bittrex.com/api/v1.1/account/getbalance', {
       currency: currency
-    }, (err, response, body) => {
-      let res = JSON.parse(body);
-      if (!res.success) callback(res.message);
+    }, (err, res) => {
+      if (err) callback(err);
       else {
         let balance = res.result.Balance;
         callback(null, balance);
@@ -227,17 +228,17 @@ class Bittrex extends Website {
       currency: currency,
       quantity: quantity,
       address: address
-    }, (err, response, body) => {
+    }, (err, res) => {
       if (err) callback(err);
       else {
-        let uuid = JSON.parse(body).result.uuid;
+        let uuid = res.result.uuid;
         let interval = setInterval(() => {
           this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
             currency: currency
-          }, (err, response2, body2) => {
-            if (err) return null;
+          }, (err, res2) => {
+            if (err) return;
             else {
-              let found = JSON.parse(body2).result.find((elem) => {
+              let found = res2.result.find((elem) => {
                 return elem.PaymentUuid == uuid;
               });
               if (found) {
