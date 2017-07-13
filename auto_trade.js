@@ -9,5 +9,14 @@ let myWebsites = {
 }
 
 const liquiEthAddr = '0xfea012e2ef9b0894ac658630abc145ba27b76099';
+
 var privateKey = Buffer.from(process.env.MEW, 'hex');
-TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN);
+TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
+
+console.log('Starting deposit...');
+myWebsites.bittrex.deposit(TS, 'ETH', 0.01, (err) => {
+  if (err) console.log(err);
+  else {
+    console.log('Deposit successfull');
+  }
+});

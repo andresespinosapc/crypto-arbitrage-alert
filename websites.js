@@ -1,20 +1,187 @@
 const request = require('request');
 const crypto = require('crypto');
 const querystring = require('querystring');
+const BigNumber = require('bignumber.js');
+const config = require('./etherdelta.github.io/config.js')
+const utility = require('./etherdelta.github.io/common/utility.js')(config); // eslint-disable-line global-require
+const utils = require('./utils.js');
 
 
-class Bittrex {
+class Website {
+  deposit(transactor, currency, value, callback) {
+    this.getBalance(currency, (err, initialBalance) => {
+      if (err) callback(err);
+      else {
+        console.log('Initial balance:', initialBalance);
+        this.getDepositAddress(currency, (err, depositAddress) => {
+          if (err) callback(err);
+          else {
+            let hash = transactor.transact(depositAddress, value);
+            console.log('Transaction hash:', hash);
+            let interval = setInterval(() => {
+              this.getBalance(currency, (err, currentBalance) => {
+                if (err) callback(err);
+                else {
+                  if (currentBalance > initialBalance) {
+                    clearInterval(interval);
+                    callback(null);
+                  }
+                }
+              });
+            }, 60000);
+          }
+        });
+      }
+    });
+  }
+}
+
+class EtherDelta {
+  constructor(transactor) {
+    this.transactor = transactor;
+    this.config = config;
+    utility.loadContract(
+      transactor.web3,
+      'etherdelta.github.io/smart_contract/etherdelta.sol',
+      this.config.contractEtherDeltaAddrs[0],
+      (err, contract) => {
+        console.log('EtherDelta ether contract loaded');
+        this.contractEtherDelta = contract;
+        utility.loadContract(
+          transactor.web3,
+          'etherdelta.github.io/smart_contract/token.sol',
+          this.config.ethAddr,
+          (err, contract) => {
+            console.log('EtherDelta token contract loaded');
+            this.contractToken = contract;
+          }
+          );
+      });
+  }
+
+  getBalance() {
+
+  }
+
+  deposit(tokenAddr, amount, callback) {
+    amount = new BigNumber(Number(utility.ethToWei(amount, this.getDivisor(tokenAddr))));
+    const token = utils.getToken(tokenAddr);
+    if (amount.lte(0)) {
+      callback('Invalid deposit amount');
+      return;
+    }
+    if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
+      this.transactor.getBalance((err, result) => {
+        if (amount.gt(result) && amount.lt(result.times(new BigNumber(1.1)))) amount = result;
+        if (amount.lte(result)) {
+          utility.send(
+            this.transactor.web3,
+            this.contractEtherDelta,
+            this.config.contractEtherDeltaAddrs[0],
+            'deposit',
+            [{ gas: this.config.gasDeposit, value: amount.toNumber() }],
+            this.transactor.address,
+            this.transactor.privateKey,
+            this.nonce,
+            (errSend, resultSend) => {
+              this.nonce = resultSend.nonce;
+              // TODO
+              this.addPending(errSend, { txHash: resultSend.txHash });
+            });
+        } else {
+          callback("You don't have enough Ether");
+        }
+      });
+    } else {
+      utility.call(
+        this.transactor.web3,
+        this.contractToken,
+        token.addr,
+        'allowance',
+        [this.transactor.address, this.config.contractEtherDeltaAddr],
+        (errAllowance, resultAllowance) => {
+          if (resultAllowance.gt(0) && amount.gt(resultAllowance)) amount = resultAllowance;
+          utility.call(
+            this.transactor.web3,
+            this.contractToken,
+            token.addr,
+            'balanceOf',
+            [this.transactor.address],
+            (errBalanceOf, resultBalanceOf) => {
+              if (amount.gt(resultBalanceOf) &&
+                amount.lt(resultBalanceOf.times(new BigNumber(1.1)))) amount = resultBalanceOf;
+              if (amount.lte(resultBalanceOf)) {
+                const txs = [];
+                async.series(
+                  [
+                    (callbackSeries) => {
+                      if (resultAllowance.eq(0)) {
+                        utility.send(
+                          this.transactor.web3,
+                          this.contractToken,
+                          tokenAddr,
+                          'approve',
+                          [this.config.contractEtherDeltaAddr, amount,
+                            { gas: this.config.gasApprove, value: 0 }],
+                          this.transactor.address,
+                          this.transactor.privateKey,
+                          this.nonce,
+                          (errSend, resultSend) => {
+                            this.nonce = resultSend.nonce;
+                            txs.push(resultSend);
+                            callbackSeries(null, { errSend, resultSend });
+                          });
+                      } else {
+                        callbackSeries(null, undefined);
+                      }
+                    },
+                    (callbackSeries) => {
+                      utility.send(
+                        this.transactor.web3,
+                        this.contractEtherDelta,
+                        this.config.contractEtherDeltaAddr,
+                        'depositToken',
+                        [tokenAddr, amount, { gas: this.config.gasDeposit, value: 0 }],
+                        this.transactor.address,
+                        this.transactor.privateKey,
+                        this.nonce,
+                        (errSend, resultSend) => {
+                          this.nonce = resultSend.nonce;
+                          txs.push(resultSend);
+                          callbackSeries(null, { errSend, resultSend });
+                        });
+                    },
+                  ],
+                  (err, results) => {
+                    const [tx1, tx2] = results;
+                    const errSend1 = tx1 ? tx1.errSend1 : undefined;
+                    const errSend2 = tx2 ? tx2.errSend1 : undefined;
+                    // TODO
+                    this.addPending(errSend1 || errSend2, txs);
+                  });
+              } else {
+                callback("You don't have enough tokens");
+              }
+            });
+        });
+    }
+  }
+}
+
+class Bittrex extends Website {
   constructor(apiKey, secretKey) {
+    super();
     this.apiKey = apiKey;
     this.secretKey = secretKey;
   }
 
   request(uri, qs, callback) {
     let nonce = new Date().getTime();
-    uri = uri + '?' + querystring.stringify({
+    let params = Object.assign(qs, {
       apikey: this.apiKey,
       nonce: nonce
     });
+    uri = uri + '?' + querystring.stringify(params);
     let sign = crypto.createHmac('sha512', this.secretKey).update(uri).digest('hex');
 
     let options = {
@@ -25,17 +192,20 @@ class Bittrex {
     }
 
     request(options, (err, response, body) => {
-      callback(err, response, body);
+      let res = JSON.parse(body);
+      if (err) callback(err);
+      else if (!res.success) callback(res.message);
+      else callback(null, res);
     });
   }
 
   getDepositAddress(currency, callback) {
     this.request('https://bittrex.com/api/v1.1/account/getdepositaddress', {
       currency: currency
-    }, (err, response, body) => {
+    }, (err, res) => {
       if (err) callback(err);
       else {
-        let address = JSON.parse(body).result.Address;
+        let address = res.result.Address;
         callback(null, address);
       }
     });
@@ -44,10 +214,10 @@ class Bittrex {
   getBalance(currency, callback) {
     this.request('https://bittrex.com/api/v1.1/account/getbalance', {
       currency: currency
-    }, (err, response, body) => {
+    }, (err, res) => {
       if (err) callback(err);
       else {
-        let balance = JSON.parse(body).result.Balance;
+        let balance = res.result.Balance;
         callback(null, balance);
       }
     });
@@ -58,17 +228,17 @@ class Bittrex {
       currency: currency,
       quantity: quantity,
       address: address
-    }, (err, response, body) => {
+    }, (err, res) => {
       if (err) callback(err);
       else {
-        let uuid = JSON.parse(body).result.uuid;
+        let uuid = res.result.uuid;
         let interval = setInterval(() => {
           this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
             currency: currency
-          }, (err, response2, body2) => {
-            if (err) return null;
+          }, (err, res2) => {
+            if (err) return;
             else {
-              let found = JSON.parse(body2).result.find((elem) => {
+              let found = res2.result.find((elem) => {
                 return elem.PaymentUuid == uuid;
               });
               if (found) {
@@ -83,8 +253,9 @@ class Bittrex {
   }
 }
 
-class Liqui {
-  constructor(apiKey, secretkey, depositAddresses) {
+class Liqui extends Website {
+  constructor(apiKey, secretKey, depositAddresses) {
+    super();
     this.apiKey = apiKey;
     this.secretKey = secretKey;
     this.depositAddresses = depositAddresses;
@@ -138,8 +309,9 @@ class Liqui {
   }
 }
 
-class Kraken {
+class Kraken extends Website {
   constructor(apiKey, secretKey) {
+    super();
     this.apiKey = apiKey;
     this.secretKey = secretKey;
   }

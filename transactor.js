@@ -9,7 +9,7 @@ const defaultGasLimit = 100000 // 100.000
 
 function TS() {}
 
-TS.init = function({provider, privateKey}={})
+TS.init = function(provider, privateKey)
 {
   this.web3 = new Web3(new Web3.providers.HttpProvider(provider))
   this.privateKey = privateKey
@@ -63,24 +63,10 @@ TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, c
     else {
       console.log('Withdrawal successful');
       // Get current balance from the final website
-      finalWebsite.getBalance(currency, (err, initialBalance) => {
+      finalWebsite.deposit(TS, currency, value, (err) => {
         if (err) callback(err);
         else {
-          console.log('Initial balance:', initialBalance);
-          let hash = TS.transact(this.privateKey, finalWebsite.getDepositAddress(currency), value=value);
-          console.log('Transaction hash:', hash);
-          let interval = setInterval(() => {
-            finalWebsite.getBalance(currency, (err, currentBalance) => {
-              if (err) callback(err);
-              else {
-                if (currentBalance > balance) {
-                  console.log('Deposit successful');
-                  clearInterval(interval);
-                  callback(null);
-                }
-              }
-            });
-          }, 60000);
+          console.log('Deposit successful');
         }
       });
     }
