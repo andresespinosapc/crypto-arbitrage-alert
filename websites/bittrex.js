@@ -1,4 +1,8 @@
-let Website = require('./website.js');
+const Website = require('./website.js');
+const querystring = require('querystring');
+const crypto = require('crypto');
+const request = require('request');
+
 
 class Bittrex extends Website {
   constructor(transactor, apiKey, secretKey) {
@@ -55,7 +59,7 @@ class Bittrex extends Website {
     });
   }
 
-  waitForWithdrawal(uuid, callback) {
+  waitForWithdrawal(uuid, currency, callback) {
     let interval = setInterval(() => {
       this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
         currency: currency
@@ -71,19 +75,20 @@ class Bittrex extends Website {
           }
         }
       });
-    }, 60000);
+    }, 20000);
   }
 
-  withdraw(currency, quantity, address, callback) {
+  withdraw(currency, quantity, callback) {
     this.request('https://bittrex.com/api/v1.1/account/withdraw', {
       currency: currency,
       quantity: quantity,
-      address: address
+      address: this.transactor.address
     }, (err, res) => {
       if (err) callback(err);
       else {
         let uuid = res.result.uuid;
-        this.waitForWithdrawal(uuid, callback);
+        console.log('Withdrawal submitted');
+        this.waitForWithdrawal(uuid, currency, callback);
       }
     });
   }

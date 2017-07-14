@@ -88,21 +88,43 @@ class EtherDelta extends Website{
             'balanceOf',
             [this.transactor.address],
             (errBalanceOf, resultBalanceOf) => {
-              if (amount.gt(resultBalanceOf) &&
-                amount.lt(resultBalanceOf.times(new BigNumber(1.1)))) amount = resultBalanceOf;
-              if (amount.lte(resultBalanceOf)) {
-                const txs = [];
-                async.series(
-                  [
-                    (callbackSeries) => {
-                      if (resultAllowance.eq(0)) {
+              if (errBalanceOf) callback(errBalanceOf);
+              else {
+                console.log('resultBalanceOf:', resultBalanceOf);
+                if (amount.gt(resultBalanceOf) &&
+                  amount.lt(resultBalanceOf.times(new BigNumber(1.1)))) amount = resultBalanceOf;
+                if (amount.lte(resultBalanceOf)) {
+                  const txs = [];
+                  async.series(
+                    [
+                      (callbackSeries) => {
+                        if (resultAllowance.eq(0)) {
+                          utility.send(
+                            this.transactor.web3,
+                            this.contractToken,
+                            tokenAddr,
+                            'approve',
+                            [this.config.contractEtherDeltaAddr, amount,
+                              { gas: this.config.gasApprove, value: 0 }],
+                            this.transactor.address,
+                            this.transactor.privateKey,
+                            this.nonce,
+                            (errSend, resultSend) => {
+                              this.nonce = resultSend.nonce;
+                              txs.push(resultSend);
+                              callbackSeries(null, { errSend, resultSend });
+                            });
+                        } else {
+                          callbackSeries(null, undefined);
+                        }
+                      },
+                      (callbackSeries) => {
                         utility.send(
                           this.transactor.web3,
-                          this.contractToken,
-                          tokenAddr,
-                          'approve',
-                          [this.config.contractEtherDeltaAddr, amount,
-                            { gas: this.config.gasApprove, value: 0 }],
+                          this.contractEtherDelta,
+                          this.config.contractEtherDeltaAddr,
+                          'depositToken',
+                          [tokenAddr, amount, { gas: this.config.gasDeposit, value: 0 }],
                           this.transactor.address,
                           this.transactor.privateKey,
                           this.nonce,
@@ -111,50 +133,32 @@ class EtherDelta extends Website{
                             txs.push(resultSend);
                             callbackSeries(null, { errSend, resultSend });
                           });
-                      } else {
-                        callbackSeries(null, undefined);
-                      }
-                    },
-                    (callbackSeries) => {
-                      utility.send(
-                        this.transactor.web3,
-                        this.contractEtherDelta,
-                        this.config.contractEtherDeltaAddr,
-                        'depositToken',
-                        [tokenAddr, amount, { gas: this.config.gasDeposit, value: 0 }],
-                        this.transactor.address,
-                        this.transactor.privateKey,
-                        this.nonce,
-                        (errSend, resultSend) => {
-                          this.nonce = resultSend.nonce;
-                          txs.push(resultSend);
-                          callbackSeries(null, { errSend, resultSend });
-                        });
-                    },
-                  ],
-                  (err, results) => {
-                    if (err) callback(err);
-                    else {
-                      const [tx1, tx2] = results;
-                      const errSend1 = tx1 ? tx1.errSend1 : undefined;
-                      const errSend2 = tx2 ? tx2.errSend1 : undefined;
+                      },
+                    ],
+                    (err, results) => {
+                      if (err) callback(err);
+                      else {
+                        const [tx1, tx2] = results;
+                        const errSend1 = tx1 ? tx1.errSend1 : undefined;
+                        const errSend2 = tx2 ? tx2.errSend1 : undefined;
 
-                      async.parallel([
-                        (parallelCallback) => {
-                          let hash = txs[0].txHash;
-                          console.log('Transaction 1 hash:', hash);
-                          this.transactor.waitForTransaction(hash, parallelCallback);
-                        },
-                        (parallelCallback) => {
-                          let hash = txs[1].txHash;
-                          console.log('Transaction 2 hash:', hash);
-                          this.transactor.waitForTransaction(hash, parallelCallback);
-                        }
-                      ], callback);
-                    }
-                  });
-              } else {
-                callback("You don't have enough tokens");
+                        async.parallel([
+                          (parallelCallback) => {
+                            let hash = txs[0].txHash;
+                            console.log('Transaction 1 hash:', hash);
+                            this.transactor.waitForTransaction(hash, parallelCallback);
+                          },
+                          (parallelCallback) => {
+                            let hash = txs[1].txHash;
+                            console.log('Transaction 2 hash:', hash);
+                            this.transactor.waitForTransaction(hash, parallelCallback);
+                          }
+                        ], callback);
+                      }
+                    });
+                } else {
+                  callback("You don't have enough tokens");
+                }
               }
             });
         });
@@ -176,51 +180,56 @@ class EtherDelta extends Website{
       'balanceOf',
       [tokenAddr, this.transactor.address],
       (err, result) => {
-        const balance = result;
-        // if you try to withdraw more than your balance, the amount
-        // will be modified so that you withdraw your exact balance:
-        if (amount > balance) {
-          amount = balance;
-        }
-        if (amount.lte(0)) {
-          callback('You don\'t have anything to withdraw');
-          return;
-        } else if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
-          utility.send(
-            this.transactor.web3,
-            this.contractEtherDelta,
-            this.config.contractEtherDeltaAddr,
-            'withdraw',
-            [amount, { gas: this.config.gasWithdraw, value: 0 }],
-            this.transactor.address,
-            this.transactor.privateKey,
-            this.nonce,
-            (errSend, resultSend) => {
-              if (errSend) callback(errSend);
-              else {
-                this.nonce = resultSend.nonce;
-                console.log('Transaction hash:', resultSend.txHash);
-                this.transactor.waitForTransaction(resultSend.txHash, callback);
-              }
+        if (err) callback(err);
+        else {
+          const balance = result;
+          // if you try to withdraw more than your balance, the amount
+          // will be modified so that you withdraw your exact balance:
+          if (amount.gt(balance)) {
+            amount = balance;
+          }
+          if (amount.lte(0)) {
+            callback('You don\'t have anything to withdraw');
+            return;
+          }
+          else if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
+            utility.send(
+              this.transactor.web3,
+              this.contractEtherDelta,
+              this.config.contractEtherDeltaAddr,
+              'withdraw',
+              [amount, { gas: this.config.gasWithdraw, value: 0 }],
+              this.transactor.address,
+              this.transactor.privateKey,
+              this.nonce,
+              (errSend, resultSend) => {
+                if (errSend) callback(errSend);
+                else {
+                  this.nonce = resultSend.nonce;
+                  console.log('Transaction hash:', resultSend.txHash);
+                  this.transactor.waitForTransaction(resultSend.txHash, callback);
+                }
+              });
+          }
+          else {
+            utility.send(
+              this.transactor.web3,
+              this.contractEtherDelta,
+              this.config.contractEtherDeltaAddr,
+              'withdrawToken',
+              [tokenAddr, amount, { gas: this.config.gasWithdraw, value: 0 }],
+              this.transactor.address,
+              this.transactor.privateKey,
+              this.nonce,
+              (errSend, resultSend) => {
+                if (errSend) callback(errSend);
+                else {
+                  this.nonce = resultSend.nonce;
+                  console.log('Transaction hash:', resultSend.txHash);
+                  this.transactor.waitForTransaction(resultSend.txHash, callback);
+                }
             });
-        } else {
-          utility.send(
-            this.transactor.web3,
-            this.contractEtherDelta,
-            this.config.contractEtherDeltaAddr,
-            'withdrawToken',
-            [tokenAddr, amount, { gas: this.config.gasWithdraw, value: 0 }],
-            this.transactor.address,
-            this.transactor.privateKey,
-            this.nonce,
-            (errSend, resultSend) => {
-              if (errSend) callback(errSend);
-              else {
-                this.nonce = resultSend.nonce;
-                console.log('Transaction hash:', resultSend.txHash);
-                this.transactor.waitForTransaction(resultSend.txHash, callback);
-              }
-          });
+          }
         }
       });
   };
