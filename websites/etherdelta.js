@@ -1,4 +1,9 @@
-let Website = require('./website.js');
+const Website = require('./website.js');
+const config = require('../etherdelta.github.io/config.js');
+const utility = require('../etherdelta.github.io/common/utility.js')(config)
+const utils = require('../utils.js');
+const BigNumber = require('bignumber.js');
+
 
 class EtherDelta extends Website{
   constructor(transactor, callback) {
@@ -175,7 +180,7 @@ class EtherDelta extends Website{
       this.contractEtherDelta,
       this.config.contractEtherDeltaAddr,
       'balanceOf',
-      [tokenAddr, this.transactor.address]],
+      [tokenAddr, this.transactor.address],
       (err, result) => {
         const balance = result;
         // if you try to withdraw more than your balance, the amount
@@ -215,7 +220,10 @@ class EtherDelta extends Website{
               this.nonce = resultSend.nonce;
               console.log('Transaction hash:', resultSend.txHash);
               this.transactor.waitForTransaction(resultSend.txHash, callback);
+          });
         }
       });
   };
 }
+
+module.exports = EtherDelta;

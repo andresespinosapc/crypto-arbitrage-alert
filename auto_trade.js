@@ -1,6 +1,5 @@
-const websites = require('./websites.js');
+const websites = require('./websites/exports.js');
 const TS = require('./transactor.js');
-const ethUtil = require('ethereumjs-util');
 
 const liquiEthAddr = '0xfea012e2ef9b0894ac658630abc145ba27b76099';
 
@@ -16,9 +15,14 @@ new websites.EtherDelta(TS, (err, etherdelta) => {
       liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
     }
 
-    myWebsites.bittrex.request('https://bittrex.com/api/v1.1/account/getdeposithistory', {}, (err, res) => {
-      console.log(res);
+    myWebsites.etherdelta.withdraw('ETH', 0.09, (err) => {
+      if (err) console.log(err);
+      else console.log('Withdraw successfull');
     });
+
+    // myWebsites.bittrex.request('https://bittrex.com/api/v1.1/account/getdeposithistory', {}, (err, res) => {
+    //   console.log(res);
+    // });
 
     // console.log('Starting deposit...');
     // myWebsites.etherdelta.deposit('ETH', 0.01, (err) => {

@@ -1,13 +1,3 @@
-const request = require('request');
-const crypto = require('crypto');
-const querystring = require('querystring');
-const BigNumber = require('bignumber.js');
-const config = require('./etherdelta.github.io/config.js')
-const utility = require('./etherdelta.github.io/common/utility.js')(config); // eslint-disable-line global-require
-const utils = require('./utils.js');
-//const locks = require('locks');
-
-
 class Website {
   constructor(transactor) {
     this.transactor = transactor;

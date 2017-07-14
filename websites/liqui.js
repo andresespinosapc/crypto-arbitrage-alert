@@ -55,3 +55,5 @@ class Liqui extends Website {
     });
   }
 }
+
+module.exports = Liqui;

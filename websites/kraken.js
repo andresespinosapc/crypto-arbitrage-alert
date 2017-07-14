@@ -28,3 +28,5 @@ class Kraken extends Website {
     });
   }
 }
+
+module.exports = Kraken;

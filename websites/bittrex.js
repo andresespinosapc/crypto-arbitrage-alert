@@ -88,3 +88,5 @@ class Bittrex extends Website {
     });
   }
 }
+
+module.exports = Bittrex;
