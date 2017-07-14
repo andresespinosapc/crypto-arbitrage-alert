@@ -22,33 +22,27 @@ TS.init = function(provider, privateKey)
 
 TS.waitForTransaction = function(txHash, callback)
 {
-  console.log('Begin watching for ' + txHash);
-  let wait = 2000;
-  web3 = this.web3
-  let interval = setInterval(search, wait);
-  function search(){
-    web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
-      if(err) {clearInterval(interval); callback(err);}
-      else if (receipt && receipt.transactionHash===txHash) {
-        console.log("Got TX receipt, checking contract");
-        let params = {
-          module:'transaction',
-          action:'getstatus',
-          txhash:txHash,
-          apikey:etherScanApiKey
-        };
-        request({uri:etherScanUri, qs:params}, (err,response, body)=>{
-          let res = JSON.parse(body);
-          if(err) {console.log('request error'); callback(err);}
-          else if(res.status!="1") callback(res.message);
-          else if(res.result.isError=="1")
-            callback('[ERR] ' + res.result.errDescription + ' (' + txHash + ')');
-          else callback(null, receipt);
-          clearInterval(interval);
-        });
-      }
-    });
-  }
+  console.log('Waiting for ' + txHash);
+  web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
+    if(err) {clearTimeout(interval); callback(err);}
+    else if (receipt && receipt.transactionHash===txHash) {
+      console.log("Got TX receipt, checking contract");
+      let params = {
+        module:'transaction',
+        action:'getstatus',
+        txhash:txHash,
+        apikey:etherScanApiKey
+      };
+      request({uri:etherScanUri, qs:params}, (err,response, body)=>{
+        let res = JSON.parse(body);
+        if(err) {console.log('request error'); callback(err);}
+        else if(res.status!="1") callback(res.message);
+        else if(res.result.isError=="1")
+          callback('[ERR] ' + res.result.errDescription + ' (' + txHash + ')');
+        else callback(undefined, receipt);
+      });
+    } else setTimeout(()=>{this.waitForTransaction(txHash, callback)}, 2000);
+  });
 }
 
 TS.__waitForTransaction = function (txHash, callback) {
@@ -78,7 +72,7 @@ TS.__waitForTransaction = function (txHash, callback) {
                 else if(res.status!="1") callback(res.message);
                 else if(res.result.isError=="1")
                   callback('[ERR] ' + res.result.errDescription + ' (' + txHash + ')');
-                else callback(null, receipt);
+                else callback(undefined, receipt);
                 filter.stopWatching();
               });
             }
@@ -92,7 +86,7 @@ TS.__waitForTransaction = function (txHash, callback) {
 TS.ethBalance = function(callback){
   this.web3.eth.getBalance(this.address, (err,balance)=>{
     if(err) callback(err);
-    else callback(new BigNumber(this.web3.fromWei(balance, 'ether')));
+    else callback(undefined, new BigNumber(this.web3.fromWei(balance, 'ether')));
   });
 }
 
@@ -116,12 +110,13 @@ TS.getBalance = function(identifier, callback)
     let data = func.getData(this.address)
     this.web3.eth.call({to:token.addr, data:data}, (err,balance)=>{
       if(err) callback(err);
-      else callback(utils.argToAmount(balance, token.decimals));
+      else callback(undefined, utils.argToAmount(balance, token.decimals));
     });
   }
 }
 
 TS.transact = function(to, value, options, callback){
+  if (callback === undefined) callback = options;
   var func = function(parent, nonce)
   {
     gasPrice = "gasPrice" in options ?
@@ -130,7 +125,7 @@ TS.transact = function(to, value, options, callback){
     var params = {
       nonce:nonce,
       gasPrice:gasPrice,
-      gasLimit:"gasLimit" in options ? gasLimit:defaultGasLimit,
+      gasLimit:"gasLimit" in options ? options.gasLimit:defaultGasLimit,
       to:to,
       value: '0x'+new BigNumber(parent.web3.toWei(value, 'ether')).toString(16),
       data:"data" in options ? options.data:''
@@ -145,7 +140,7 @@ TS.transact = function(to, value, options, callback){
       else {callback(undefined, txHash);}
     });
   }
-  if("nonce" in options) func(this, options.nonce);
+  if(options.nonce) func(this, options.nonce);
   else{
     this.web3.eth.getTransactionCount(this.address, (err, value)=>{
       if(err) callback(err);
@@ -154,27 +149,42 @@ TS.transact = function(to, value, options, callback){
   }
 }
 
-TS.sendToken = function(tokenIdentifier, to, amount, {funcName='transfer',
-                        value=0, gasPrice=defaultGasPrice, gasLimit=defaultGasLimit,
-                        nonce=null}={})
+TS.sendToken = function(tokenIdentifier, to, amount, options, callback)
 {
+  options.gasPrice = options.gasPrice || defaultGasPrice;
+  options.gasLimit = options.gasLimit || defaultGasLimit;
+  options.nonce = 'nonce' in options ? value.nonce:null;
   let token = utils.getToken(tokenIdentifier)
   if(token === null)
   {
     console.log('Token ' + tokenIdentifier + ' not found')
     console.log('Could not make transaction')
   }
-  if(token.addr=ethAddress) {
+  if(token.addr===ethAddress) {
+    console.log('Sending ether');
+    console.log(options);
+    this.transact(to, amount, options, (err,txHash)=>{
+      if(err) callback(err);
+      else callback(undefined, txHash);
+    });
   }
   else{
+    options.value = 'value' in options ? value.options:0;
+    console.log('Sending ' + token.name);
+    console.log(options);
     let abi = utils.getAbi(token.addr)
     let contract = this.web3.eth.contract(abi)
     let ci = contract.at(token.addr)
+    // let funcName = utils.getTransferFuncName(token) // TODO
+    let funcName= 'transfer';
     let func = ci[funcName]
     amount = utils.amountToarg(amount, token.decimals)
     let callData = func.getData(to, amount)
-    this.transact(token.addr, value, {data:callData, gasPrice:gasPrice,
-                          gasLimit:gasLimit, nonce:nonce})
+    options.data = callData;
+    this.transact(token.addr, options.value, options, (err,txHash)=>{
+      if(err) callback(err);
+      else callback(undefined, txHash);
+    })
   }
 }
 
