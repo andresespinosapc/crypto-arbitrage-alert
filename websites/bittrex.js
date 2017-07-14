@@ -60,22 +60,24 @@ class Bittrex extends Website {
   }
 
   waitForWithdrawal(uuid, currency, callback) {
-    let interval = setInterval(() => {
-      this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
-        currency: currency
-      }, (err, res) => {
-        if (err) callback(err);
-        else {
-          let found = res.result.find((elem) => {
-            return elem.PaymentUuid == uuid;
-          });
-          if (found) {
-            clearInterval(interval);
-            callback(null);
-          }
+    this.request('https://bittrex.com/api/v1.1/account/getwithdrawalhistory', {
+      currency: currency
+    }, (err, res) => {
+      if (err) callback(err);
+      else {
+        let found = res.result.find((elem) => {
+          return elem.PaymentUuid == uuid;
+        });
+        if (found) {
+          callback(null);
         }
-      });
-    }, 20000);
+        else {
+          setTimeout(() => {
+            waitForWithdrawal(uuid, currency, callback);
+          }, 20000);
+        }
+      }
+    });
   }
 
   withdraw(currency, quantity, callback) {
