@@ -1,6 +1,7 @@
 const BigNumber = require('bignumber.js');
 const fs = require('fs');
 
+
 function utils() {}
 
 utils.amountToarg = function(amount, decimals)
@@ -15,6 +16,13 @@ utils.argToAmount = function(arg, decimals)
   return new BigNumber(arg).dividedBy(Math.pow(10, decimals))
 }
 
+utils.loadContractSync = function (web3, sourceCode, address) {
+  const abi = JSON.parse(fs.readFileSync(`${sourceCode}.interface`))
+  let contract = web3.eth.contract(abi);
+  contract = contract.at(address);
+
+  return contract;
+};
 
 utils.getTokenContract = function(identifier)
 {
