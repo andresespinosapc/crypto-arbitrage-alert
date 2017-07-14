@@ -4,7 +4,7 @@ const ethUtil = require('ethereumjs-util');
 
 const liquiEthAddr = '0xfea012e2ef9b0894ac658630abc145ba27b76099';
 
-var privateKey = Buffer.from(process.env.MEW, 'hex');
+var privateKey = Buffer.from(process.env.PRIV, 'hex');
 TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
 
 new websites.EtherDelta(TS, (err, etherdelta) => {
@@ -16,13 +16,17 @@ new websites.EtherDelta(TS, (err, etherdelta) => {
       liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
     }
 
-    console.log('Starting deposit...');
-    myWebsites.etherdelta.deposit('ETH', 0.01, (err) => {
-      if (err) console.log(err);
-      else {
-        console.log('Deposit successfull');
-      }
+    myWebsites.bittrex.request('https://bittrex.com/api/v1.1/account/getdeposithistory', {}, (err, res) => {
+      console.log(res);
     });
+
+    // console.log('Starting deposit...');
+    // myWebsites.etherdelta.deposit('ETH', 0.01, (err) => {
+    //   if (err) console.log(err);
+    //   else {
+    //     console.log('Deposit successfull');
+    //   }
+    // });
 
     // console.log('Starting deposit...');
     // myWebsites.bittrex.deposit(TS, 'ETH', 0.01, (err) => {
