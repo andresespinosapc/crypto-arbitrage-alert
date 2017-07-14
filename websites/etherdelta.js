@@ -6,34 +6,25 @@ const BigNumber = require('bignumber.js');
 
 
 class EtherDelta extends Website{
-  constructor(transactor, callback) {
+  constructor(transactor) {
     super(transactor);
+
     this.config = config;
     this.config.contractEtherDeltaAddr = this.config.contractEtherDeltaAddrs[0].addr;
-    utility.loadContract(
+
+    this.contractEtherDelta = utils.loadContractSync(
       transactor.web3,
       'etherdelta.github.io/smart_contract/etherdelta.sol',
-      this.config.contractEtherDeltaAddr,
-      (err, contract) => {
-        if (err) callback(err);
-        else {
-          console.log('EtherDelta ether contract loaded');
-          this.contractEtherDelta = contract;
-          utility.loadContract(
-            transactor.web3,
-            'etherdelta.github.io/smart_contract/token.sol',
-            this.config.ethAddr,
-            (err, contract) => {
-              if (err) callback(err);
-              else {
-                console.log('EtherDelta token contract loaded');
-                this.contractToken = contract;
-                callback(undefined, this);
-              }
-            }
-          );
-        }
-    });
+      this.config.contractEtherDeltaAddr);
+    if (this.contractEtherDelta) console.log('EtherDelta ether contract loaded');
+    else console.log('Error loading EtherDelta ether contract');
+
+    this.contractToken = utils.loadContractSync(
+      transactor.web3,
+      'etherdelta.github.io/smart_contract/token.sol',
+      this.config.ethAddr);
+    if (this.contractToken) console.log('EtherDelta token contract loaded');
+    else console.log('Error loading EtherDelta token contract');
   }
 
   getDivisor(tokenOrAddress) {
@@ -55,27 +46,30 @@ class EtherDelta extends Website{
     }
     if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
       this.transactor.getBalance('ETH', (err, balance) => {
-        if (amount.gt(balance) && amount.lt(balance.times(new BigNumber(1.1)))) amount = balance;
-        if (amount.lte(balance)) {
-          utility.send(
-            this.transactor.web3,
-            this.contractEtherDelta,
-            this.config.contractEtherDeltaAddr,
-            'deposit',
-            [{ gas: this.config.gasDeposit, value: amount.toNumber() }],
-            this.transactor.address,
-            this.transactor.privateKey,
-            this.nonce,
-            (errSend, resultSend) => {
-              if (errSend) callback(errSend);
-              else {
-                this.nonce = resultSend.nonce;
-                console.log('Transaction hash:', resultSend.txHash);
-                this.transactor.waitForTransaction(resultSend.txHash, callback);
-              }
-            });
-        } else {
-          callback("You don't have enough Ether");
+        if (err) callback(err);
+        else {
+          if (amount.gt(balance) && amount.lt(balance.times(new BigNumber(1.1)))) amount = balance;
+          if (amount.lte(balance)) {
+            utility.send(
+              this.transactor.web3,
+              this.contractEtherDelta,
+              this.config.contractEtherDeltaAddr,
+              'deposit',
+              [{ gas: this.config.gasDeposit, value: amount.toNumber() }],
+              this.transactor.address,
+              this.transactor.privateKey,
+              this.nonce,
+              (errSend, resultSend) => {
+                if (errSend) callback(errSend);
+                else {
+                  this.nonce = resultSend.nonce;
+                  console.log('Transaction hash:', resultSend.txHash);
+                  this.transactor.waitForTransaction(resultSend.txHash, callback);
+                }
+              });
+          } else {
+            callback('You don\'t have enough Ether');
+          }
         }
       });
     } else {
@@ -202,9 +196,12 @@ class EtherDelta extends Website{
             this.transactor.privateKey,
             this.nonce,
             (errSend, resultSend) => {
-              this.nonce = resultSend.nonce;
-              console.log('Transaction hash:', resultSend.txHash);
-              this.transactor.waitForTransaction(resultSend.txHash, callback);
+              if (errSend) callback(errSend);
+              else {
+                this.nonce = resultSend.nonce;
+                console.log('Transaction hash:', resultSend.txHash);
+                this.transactor.waitForTransaction(resultSend.txHash, callback);
+              }
             });
         } else {
           utility.send(
@@ -213,13 +210,16 @@ class EtherDelta extends Website{
             this.config.contractEtherDeltaAddr,
             'withdrawToken',
             [tokenAddr, amount, { gas: this.config.gasWithdraw, value: 0 }],
-            this.address,
-            this.privateKey,
+            this.transactor.address,
+            this.transactor.privateKey,
             this.nonce,
             (errSend, resultSend) => {
-              this.nonce = resultSend.nonce;
-              console.log('Transaction hash:', resultSend.txHash);
-              this.transactor.waitForTransaction(resultSend.txHash, callback);
+              if (errSend) callback(errSend);
+              else {
+                this.nonce = resultSend.nonce;
+                console.log('Transaction hash:', resultSend.txHash);
+                this.transactor.waitForTransaction(resultSend.txHash, callback);
+              }
           });
         }
       });
