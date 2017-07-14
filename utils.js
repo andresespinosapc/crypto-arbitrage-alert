@@ -1,4 +1,5 @@
 const BigNumber = require('bignumber.js');
+const fs = require('fs');
 
 function utils() {}
 
@@ -21,7 +22,6 @@ utils.getTokenContract = function(identifier)
 
 utils.getAbi = function(identifier)
 {
-  const fs = require('fs');
   return JSON.parse(fs.readFileSync('./tokens/token.sol.interface', 'utf8'))
 }
 
