@@ -2,10 +2,13 @@ const Tx = require('ethereumjs-tx')
 const Web3 = require('web3')
 const utils = require('./utils')
 const BigNumber = require('bignumber.js');
-const ethUtil = require('ethereumjs-util')
+const ethUtil = require('ethereumjs-util');
+const request = require('request');
 const defaultGasPrice = 2 // 2 gWei
 const defaultGasLimit = 100000 // 100.000
 const ethAddress ='0x0000000000000000000000000000000000000000'
+const etherScanUri= 'https://api.etherscan.io/api'
+const etherScanApiKey = 'TYM3NSAF9RIAFSNRU5RZJQHI71C784FNK6' // TODO temporal
 
 
 function TS() {}
@@ -17,9 +20,74 @@ TS.init = function(provider, privateKey)
   this.address = '0x' + ethUtil.privateToAddress(privateKey).toString('hex')
 }
 
-TS.waitForTransaction = function (txHast, callback) {
-  callback();
+TS.waitForTransaction = function(txHash, callback)
+{
+  console.log('Begin watching for ' + txHash);
+  let wait = 2000;
+  web3 = this.web3
+  let interval = setInterval(search, wait);
+  function search(){
+    web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
+      if(err) {clearInterval(interval); callback(err);}
+      else if (receipt && receipt.transactionHash===txHash) {
+        console.log("Got TX receipt, checking contract");
+        let params = {
+          module:'transaction',
+          action:'getstatus',
+          txhash:txHash,
+          apikey:etherScanApiKey
+        };
+        request({uri:etherScanUri, qs:params}, (err,response, body)=>{
+          let res = JSON.parse(body);
+          if(err) {console.log('request error'); callback(err);}
+          else if(res.status!="1") callback(res.message);
+          else if(res.result.isError=="1")
+            callback('[ERR] ' + res.result.errDescription + ' (' + txHash + ')');
+          else callback(null, receipt);
+          clearInterval(interval);
+        });
+      }
+    });
+  }
 }
+
+TS.__waitForTransaction = function (txHash, callback) {
+  console.log('Begin watching for transaction')
+  this.web3.eth.filter('latest', (err,result)=>{
+    if(err) {console.log('watch error'); callback(err);}
+    else{
+      console.log("New Block")
+      this.web3.eth.getTransaction(txHash, (err,tx)=>{
+        if(err) {console.log('get Transaction error'); callback(err);}
+        else if(tx.blockNumber!==null)
+        {
+          console.log('Transaction mined')
+          this.web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
+            if (err) {console.log('receipt error'); callback(err);}
+            else{
+              console.log("Got TX receipt, checking contract")
+              let params = {
+                module:'transaction',
+                action:'getstatus',
+                txhash:txHash,
+                apikey:etherScanApiKey
+              };
+              request({uri:etherScanUri, qs:params}, (err,response, body)=>{
+                let res = JSON.parse(body);
+                if(err) {console.log('request error'); callback(err);}
+                else if(res.status!="1") callback(res.message);
+                else if(res.result.isError=="1")
+                  callback('[ERR] ' + res.result.errDescription + ' (' + txHash + ')');
+                else callback(null, receipt);
+                filter.stopWatching();
+              });
+            }
+          });
+        };
+      });
+    }
+  });
+};
 
 TS.ethBalance = function(callback){
   this.web3.eth.getBalance(this.address, (err,balance)=>{
@@ -74,7 +142,7 @@ TS.transact = function(to, value, options, callback){
     parent.web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'),
     (err,txHash)=>{
       if(err) callback(err);
-      else callback(undefined, txHash);
+      else {callback(undefined, txHash);}
     });
   }
   if("nonce" in options) func(this, options.nonce);
@@ -108,11 +176,6 @@ TS.sendToken = function(tokenIdentifier, to, amount, {funcName='transfer',
     this.transact(token.addr, value, {data:callData, gasPrice:gasPrice,
                           gasLimit:gasLimit, nonce:nonce})
   }
-}
-
-TS.waitConfirmation = function(txHash, callback)
-{
-  var filter = web3.eth.filter('latest');
 }
 
 TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, callback) {
