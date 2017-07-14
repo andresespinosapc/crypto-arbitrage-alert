@@ -189,7 +189,7 @@ TS.sendToken = function(tokenIdentifier, to, amount, options, callback)
 }
 
 TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, callback) {
-  initialWebsite.withdraw(currency, value, this.address, (err) => {
+  initialWebsite.withdraw(currency, value, (err) => {
     if (err) callback(err);
     else {
       console.log('Withdrawal successful');
@@ -198,6 +198,7 @@ TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, c
         if (err) callback(err);
         else {
           console.log('Deposit successful');
+          callback(undefined);
         }
       });
     }

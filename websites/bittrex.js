@@ -73,7 +73,7 @@ class Bittrex extends Website {
         }
         else {
           setTimeout(() => {
-            waitForWithdrawal(uuid, currency, callback);
+            this.waitForWithdrawal(uuid, currency, callback);
           }, 20000);
         }
       }
@@ -92,6 +92,79 @@ class Bittrex extends Website {
         console.log('Withdrawal submitted');
         this.waitForWithdrawal(uuid, currency, callback);
       }
+    });
+  }
+
+  getOrders(baseCurrency, tradeCurrency, limit, callback) {
+    let options = {
+      uri: 'https://bittrex.com/api/v1.1/public/getorderbook',
+      qs: {
+        market: baseCurrency + '-' + tradeCurrency,
+        type: 'both', // TEMP
+        depth: limit
+      }
+    }
+    request(options, (err, res) => {
+      if (err) callback(err);
+      else {
+        callback(undefined, {
+          buy: res.result.buy.map((elem) => {
+            return {
+              quantity: elem.Quantity,
+              price: elem.Rate
+            }
+          }),
+          sell: res.result.sell.map((elem) => {
+            return {
+              quantity: elem.Quantity,
+              price: elem.Rate
+            }
+          })
+        });
+      }
+    });
+  }
+
+  placeBuyOrder(baseCurrency, tradeCurrency, quantity, price, callback) {
+    let options = {
+      uri: 'https://bittrex.com/api/v1.1/market/buylimit',
+      qs: {
+        market: baseCurrency + '-' + tradeCurrency,
+        quantity: quantity,
+        rate: price
+      }
+    }
+    request(options, (err, res) => {
+      if (err) callback(err);
+      else callback(undefined, res.result.uuid);
+    });
+  }
+
+  placeSellOrder(baseCurrency, tradeCurrency, quantity, price, callback) {
+    let options = {
+      uri: 'https://bittrex.com/api/v1.1/market/selllimit',
+      qs: {
+        market: baseCurrency + '-' + tradeCurrency,
+        quantity: quantity,
+        rate: price
+      }
+    };
+    request(options, (err, res) => {
+      if (err) callback(err);
+      else callback(undefined, res.result.uuid);
+    });
+  }
+
+  cancelOrder(uuid, callback) {
+    let options = {
+      uri: 'https://bittrex.com/api/v1.1/market/cancel',
+      qs: {
+        uuid: uuid
+      }
+    };
+    request(options, (err, res) => {
+      if (err) callback(err);
+      else callback(undefined);
     });
   }
 }

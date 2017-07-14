@@ -3,6 +3,7 @@ const config = require('../etherdelta.github.io/config.js');
 const utility = require('../etherdelta.github.io/common/utility.js')(config)
 const utils = require('../utils.js');
 const BigNumber = require('bignumber.js');
+const async = require('async');
 
 
 class EtherDelta extends Website{
@@ -11,6 +12,8 @@ class EtherDelta extends Website{
 
     this.config = config;
     this.config.contractEtherDeltaAddr = this.config.contractEtherDeltaAddrs[0].addr;
+    this.config.apiServer = this.config.apiServer[
+      Math.floor(Math.random() * this.config.apiServer.length)];
 
     this.contractEtherDelta = utils.loadContractSync(
       transactor.web3,
@@ -233,6 +236,18 @@ class EtherDelta extends Website{
         }
       });
   };
+
+  getOrders(baseCurrency, tradeCurrency, limit, callback) {
+    let apiServerNonce = Math.random().toString().slice(2) +
+      Math.random().toString().slice(2);
+    request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${baseCurrency}/${tradeCurrency}`, (err, response, body) => {
+      if (err) callback(err);
+      else {
+        let data = JSON.parse(body);
+        console.log(data);
+      }
+    });
+  }
 }
 
 module.exports = EtherDelta;

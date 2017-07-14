@@ -12,6 +12,13 @@ let myWebsites = {
   liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
 }
 
+myWebsites.etherdelta.deposit('FUN2', 6788.852, (err) => {
+  if (err) console.log(err);
+  else {
+    console.log('yeah');
+  }
+});
+
 // myWebsites.bittrex.withdraw('FUN', 5364.05125556, (err) => {
 //   if (err) console.log(err);
 //   else console.log('Withdrawal successfull');
@@ -32,28 +39,7 @@ let myWebsites = {
 //   else console.log('Withdrawal successfull');
 // });
 
-myWebsites.bittrex.deposit('ETH', 0.476, (err) => {
-  if (err) console.log(err);
-  else console.log('Deposit submitted');
-});
-
-
-// myWebsites.bittrex.request('https://bittrex.com/api/v1.1/account/getdeposithistory', {}, (err, res) => {
-//   console.log(res);
-// });
-
-// console.log('Starting deposit...');
-// myWebsites.etherdelta.deposit('ETH', 0.01, (err) => {
+// myWebsites.bittrex.deposit('ETH', 0.476, (err) => {
 //   if (err) console.log(err);
-//   else {
-//     console.log('Deposit successfull');
-//   }
-// });
-
-// console.log('Starting deposit...');
-// myWebsites.bittrex.deposit(TS, 'ETH', 0.01, (err) => {
-//   if (err) console.log(err);
-//   else {
-//     console.log('Deposit successfull');
-//   }
+//   else console.log('Deposit submitted');
 // });

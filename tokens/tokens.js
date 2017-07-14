@@ -1,4 +1,5 @@
 tokens = [
+  { addr: "0x419D0d8BdD9aF5e606Ae2232ed285Aff190E711b", name: "FUN2", decimals: 8 },
   { addr: "0x0000000000000000000000000000000000000000", name: "ETH", decimals: 18 },
   { addr: "0xd8912c10681d8b21fd3742244f44658dba12264e", name: "PLU", decimals: 18 },
   { addr: "0xaf30d2a7e90d7dc361c8c4585e9bb7d2f6f15bc7", name: "1ST", decimals: 18 },
