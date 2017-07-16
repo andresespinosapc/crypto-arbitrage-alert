@@ -4,6 +4,7 @@ const utility = require('../etherdelta.github.io/common/utility.js')(config)
 const utils = require('../utils.js');
 const BigNumber = require('bignumber.js');
 const async = require('async');
+const request = require('request');
 
 
 class EtherDelta extends Website{
@@ -240,11 +241,31 @@ class EtherDelta extends Website{
   getOrders(baseCurrency, tradeCurrency, limit, callback) {
     let apiServerNonce = Math.random().toString().slice(2) +
       Math.random().toString().slice(2);
-    request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${baseCurrency}/${tradeCurrency}`, (err, response, body) => {
+    let baseToken = utils.getToken(baseCurrency);
+    let tradeToken = utils.getToken(tradeCurrency);
+    let uri = `${this.config.apiServer}/orders/${apiServerNonce}/${baseToken.addr}/${tradeToken.addr}`;
+    request.get(uri, (err, response, body) => {
       if (err) callback(err);
       else {
-        let data = JSON.parse(body);
-        console.log(data);
+        let ordersData = JSON.parse(body).orders;
+        callback(undefined, {
+          buy: ordersData.filter((elem) => {
+            return elem.order.tokenGive == baseToken.addr;
+          }).map((elem) => {
+            return {
+              amount: elem.amount,
+              price: elem.price
+            }
+          }),
+          sell: ordersData.filter((elem) => {
+            return elem.order.tokenGet == baseToken.addr;
+          }).map((elem) => {
+            return {
+              
+            }
+          })
+        });
+        callback(undefined, data);
       }
     });
   }

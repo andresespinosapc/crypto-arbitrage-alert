@@ -110,14 +110,16 @@ class Bittrex extends Website {
         callback(undefined, {
           buy: res.result.buy.map((elem) => {
             return {
-              quantity: elem.Quantity,
-              price: elem.Rate
+              amount: elem.Quantity,
+              price: elem.Rate,
+              baseAmount: elem.Quantity * elem.Rate
             }
           }),
           sell: res.result.sell.map((elem) => {
             return {
-              quantity: elem.Quantity,
-              price: elem.Rate
+              amount: elem.Quantity,
+              price: elem.Rate,
+              baseAmount: elem.Quantity * elem.Rate
             }
           })
         });
