@@ -4,30 +4,39 @@ const utility = require('../etherdelta.github.io/common/utility.js')(config)
 const utils = require('../utils.js');
 const BigNumber = require('bignumber.js');
 const async = require('async');
-
+const request = require('request');
+const etherScanUri = 'https://api.etherscan.io/api'
+const etherScanApiKey = 'TYM3NSAF9RIAFSNRU5RZJQHI71C784FNK6' // TODO temporal
+const locks = require('locks');
 
 class EtherDelta extends Website{
   constructor(transactor) {
     super(transactor);
 
     this.config = config;
+    this.config.etherDeltaContracts = this.config.contractEtherDeltaAddrs.map(
+      (elem)=>{return elem.addr;});
+    this.config.tokens = this.config.tokens.map((elem)=>{return elem.name});
     this.config.contractEtherDeltaAddr = this.config.contractEtherDeltaAddrs[0].addr;
     this.config.apiServer = this.config.apiServer[
       Math.floor(Math.random() * this.config.apiServer.length)];
 
     this.contractEtherDelta = utils.loadContractSync(
       transactor.web3,
-      'etherdelta.github.io/smart_contract/etherdelta.sol',
+      __dirname + '/../etherdelta.github.io/smart_contract/etherdelta.sol',
       this.config.contractEtherDeltaAddr);
-    if (this.contractEtherDelta) console.log('EtherDelta ether contract loaded');
+    if (this.contractEtherDelta); //console.log('EtherDelta ether contract loaded');
     else console.log('Error loading EtherDelta ether contract');
 
     this.contractToken = utils.loadContractSync(
       transactor.web3,
-      'etherdelta.github.io/smart_contract/token.sol',
+      __dirname + '/../etherdelta.github.io/smart_contract/token.sol',
       this.config.ethAddr);
-    if (this.contractToken) console.log('EtherDelta token contract loaded');
+    if (this.contractToken); //console.log('EtherDelta token contract loaded');
     else console.log('Error loading EtherDelta token contract');
+
+    this.eventsLock = locks.createMutex();
+    this.eventsCache = {};
   }
 
   getDivisor(tokenOrAddress) {
@@ -238,16 +247,127 @@ class EtherDelta extends Website{
   };
 
   getOrders(baseCurrency, tradeCurrency, limit, callback) {
-    let apiServerNonce = Math.random().toString().slice(2) +
-      Math.random().toString().slice(2);
-    request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${baseCurrency}/${tradeCurrency}`, (err, response, body) => {
+    let apiServerNonce = this.getNonce();
+    // CURRENCIES MUST
+    let baseToken = utils.getToken(tradeCurrency);
+    let tradeToken = utils.getToken(baseCurrency);
+    request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${baseToken.addr}/${tradeToken.addr}`, (err, response, body) => {
       if (err) callback(err);
       else {
-        let data = JSON.parse(body);
-        console.log(data);
+        let orders = JSON.parse(body);
+        let pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, limit);
+        callback(undefined, {
+          buy: pairs.buy.map((elem)=>{
+            return {
+              price:new BigNumber(elem.price).toNumber(),
+              quantity:utils.argToAmount(elem.amount, baseToken.decimals)
+              .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
+            }
+          }),
+          sell: pairs.sell.map((elem)=>{
+            return {
+              price:new BigNumber(elem.price).toNumber(),
+              quantity:utils.argToAmount(-elem.amount, baseToken.decimals)
+              .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
+            }
+          })
+        });
       }
     });
   }
+
+  getTrades(callback)
+  {
+    var qs = {
+      module:'proxy',
+      action:'eth_blockNumber',
+      apikey:etherScanApiKey
+    }
+    // TODO use INFURA node to get blockNumber
+    request({uri:etherScanUri, qs:qs}, (err, response, body)=>{
+      if(err) callback(err)
+      else{
+        let res = JSON.parse(body);
+        let blockNumber = parseInt(res.result, 16);
+        let apiServerNonce = this.getNonce();
+        console.log('NEW NONCE', apiServerNonce);
+        request.get(`${this.config.apiServer}/events/${apiServerNonce}/${blockNumber}`, (err, response, body)=>{
+          if(err) callback(err);
+          else{
+            let trades = JSON.parse(body);
+            this.eventsLock.lock(()=>{
+              this.eventsCache = trades;
+              this.eventsLock.unlock();
+            });
+            callback(undefined, trades);
+          }
+        });
+      };
+    });
+  }
+
+  getTradesByPair(baseCurrency, tradeCurrency)
+  {
+    let trades = [];
+    let tokenGive = utils.getToken(baseCurrency);
+    let baseAddrLower = tokenGive.addr.toLowerCase();
+    let tokenGet = utils.getToken(tradeCurrency);
+    let tradeAddrLower = tokenGet.addr.toLowerCase();
+    console.log(baseAddrLower);
+    console.log(tradeAddrLower);
+    this.eventsLock.lock(()=>{
+      Object.keys(this.eventsCache.events).forEach((key)=>{
+        var event = this.eventsCache.events[key];
+        if(event.event === 'Trade' && this.config.etherDeltaContracts.indexOf(event.address)>=0){
+          if (Number(event.args.amountGive) > 0 && Number(event.args.amountGet) > 0) {
+            if(event.args.tokenGet.toLowerCase() === tradeAddrLower &&
+               event.args.tokenGive.toLowerCase() === baseAddrLower){
+              var amountGet = utils.argToAmount(event.args.amountGet, tokenGet.decimals);
+              var amountGive = utils.argToAmount(event.args.amountGive, tokenGive.decimals);
+              var trade = {
+                amountGet,
+                amountGive,
+                rate:amountGive.dividedBy(amountGet),
+                timestamp: new Date(parseInt(event.timeStamp, 16) * 1000)
+              }
+              trades.push(trade)
+            } else if (event.args.tokenGive.toLowerCase() === tradeAddrLower &&
+               event.args.tokenGet.toLowerCase() === baseAddrLower){
+               var amountGet = utils.argToAmount(event.args.amountGive, tokenGet.decimals);
+               var amountGive = utils.argToAmount(event.args.amountGet, tokenGive.decimals);
+               var trade = {
+                 amountGet,
+                 amountGive,
+                 rate:amountGive.dividedBy(amountGet),
+                 timestamp: new Date(parseInt(event.timeStamp, 16) * 1000)
+               }
+               trades.push(trade);
+             }
+          }
+        }
+      });
+      trades.sort((a,b)=>{
+        return b.timestamp>a.timestamp;
+      })
+      this.eventsLock.unlock();
+      return trades;
+    });
+  }
+
+  getNonce(){
+    return Math.random().toString().slice(2) + Math.random().toString().slice(2);
+  }
+
+  sell(){}
+
+  buy(){}
+
+
+
 }
+
+
+
+
 
 module.exports = EtherDelta;

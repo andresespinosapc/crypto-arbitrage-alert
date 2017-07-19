@@ -104,17 +104,18 @@ class Bittrex extends Website {
         depth: limit
       }
     }
-    request(options, (err, res) => {
+    request(options, (err, response, body) => {
       if (err) callback(err);
       else {
+        let orders = JSON.parse(body);
         callback(undefined, {
-          buy: res.result.buy.map((elem) => {
+          buy: orders.result.buy.map((elem) => {
             return {
               quantity: elem.Quantity,
               price: elem.Rate
             }
           }),
-          sell: res.result.sell.map((elem) => {
+          sell: orders.result.sell.map((elem) => {
             return {
               quantity: elem.Quantity,
               price: elem.Rate

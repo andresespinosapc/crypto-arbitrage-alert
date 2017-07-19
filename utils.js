@@ -84,4 +84,27 @@ utils.getDivisor = function getDivisor(tokenOrAddress) {
   return new BigNumber(result);
 };
 
+utils.ordersByPair = function(orders, addressA, addressB, n)
+{
+  const topNOrders = [];
+  const buys = [];
+  const sells = [];
+  orders.forEach((order) => {
+    if (order.amount > 0 && order.order.tokenGive === addressB &&
+    order.order.tokenGet === addressA) {
+      buys.push(order);
+    } else if (order.amount < 0 && order.order.tokenGive === addressA &&
+    order.order.tokenGet === addressB) {
+      sells.push(order);
+    }
+  });
+  sells.sort((a, b) => a.price - b.price || a.id - b.id);
+  buys.sort((a, b) => b.price - a.price || a.id - b.id);
+  a = n ? n: buys.length;
+  b = n ? n:sells.length;
+  // buys = buys.slice(0, a);
+  // sells = sells.slice(0, b);
+  return {buy:buys.slice(0, a), sell:sells.slice(0, b)};
+}
+
 module.exports = utils
