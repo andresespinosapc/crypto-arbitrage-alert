@@ -17,9 +17,11 @@
     "js-combinatorics": "^0.5.2",
     "keythereum": "^1.0.1",
     "locks": "^0.2.2",
+    "mysql": "^2.13.0",
     "path": "^0.12.7",
     "querystring": "^0.2.0",
     "request": "^2.81.0",
-    "web3": "^0.19.1"
+    "web3": "^0.19.1",
+    "winston": "^2.3.1"
   }
 }
