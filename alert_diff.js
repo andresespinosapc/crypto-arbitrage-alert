@@ -5,16 +5,23 @@ const winston = require('winston');
 
 
 let logger = new winston.Logger({
-  exitOnError: true,
+  exitOnError: false,
   transports: [
     new (winston.transports.Console)({
-      handleExceptions: false,
+      handleExceptions: true,
+      humanReadableUnhandledException: true,
       level: 'debug'
     }),
     new (winston.transports.File)({
       name: 'error-file',
       handleExceptions: false,
       filename: 'alert_diff.log',
+      level: 'error'
+    }),
+    new (winston.transports.File)({
+      name: 'exceptions-file',
+      handleExceptions: true,
+      filename: 'alert_diff_exceptions.log',
       level: 'error'
     })
   ]
@@ -54,11 +61,11 @@ let mainLoop = (conn) => {
             else {
               if (!data) {
                 logger.error('No bittrex data');
-                resolve({});
+                resolve();
               }
               else if (!data.success) {
                 logger.info('Bittrex error for ' + coin + ': ' + data.message);
-                resolve({});
+                resolve();
               }
               else {
                 data = data.result;
@@ -70,6 +77,8 @@ let mainLoop = (conn) => {
               }
             }
           });
+        }).catch((err) => {
+          logger.info('Bittrex promise failed: ' + err);
         });
         let liquiPromise = new Promise((resolve) => {
           let name = coin.toLowerCase() + '_eth';
@@ -82,9 +91,11 @@ let mainLoop = (conn) => {
             else {
               if (!data) {
                 logger.error('No liqui data');
+                resolve();
               }
               else if (data.success === 0) {
                 logger.info('Liqui error for ' + coin + ': ' + data.error);
+                resolve();
               }
               else {
                 data = data[name];
@@ -97,6 +108,8 @@ let mainLoop = (conn) => {
               }
             }
           });
+        }).catch((err) => {
+          logger.info('Liqui promise failed: ' + err);
         });
         let krakenPromise = new Promise((resolve) => {
           let options = {
@@ -107,20 +120,33 @@ let mainLoop = (conn) => {
           request(options, (err, response, data) => {
             if (err) resolve(undefined);
             else {
-              if (data.error) {
+              if (!data) {
+                logger.info('No kraken data');
+              }
+              else if (data.error.length) {
+                logger.info(data);
                 logger.info('Kraken error for ' + coin + ': ' + data.error);
                 resolve(undefined);
               }
               else {
-                resolve({
-                  last: data.c[0],
-                  ask: data.a[0],
-                  bid: data.b[0],
-                  dailyVolume: data.v[1]
-                });
+                data = data.result[coin + 'ETH'];
+                try {
+                  resolve({
+                    last: data.c[0],
+                    ask: data.a[0],
+                    bid: data.b[0],
+                    dailyVolume: data.v[1]
+                  });
+                }
+                catch (err) {
+                  logger.info('Error resolving Kraken: ' + err);
+                  resolve();
+                }
               }
             }
           });
+        }).catch((err) => {
+          logger.info('Kraken promise failed: ' + err);
         });
         markets.bittrex[coin] = await bittrexPromise;
         markets.liqui[coin] = await liquiPromise;
@@ -160,18 +186,18 @@ let mainLoop = (conn) => {
             }
           }
           catch (err) {
-
+            logger.info('Error in difference ' + market1 + '-' + market2);
           }
         });
       });
     });
   }
   catch (err) {
-    console.log(err);
+    logger.error(err);
   }
 }
 
-let conn = mysql.createConnection({
+let conn = mysql.createPool({
   host: 'localhost',
   user: 'andres',
   password: 'wena',
@@ -179,18 +205,29 @@ let conn = mysql.createConnection({
 });
 
 let coins = [
-      'VERI', 'PAY', 'FUN', 'DICE', 'ADX', 'ADT', 'SNT', 'EOS', 'ICE', 'HMQ', 'PLU', 'BAT']
-coins = ['PAY', 'FUN', 'ADX', 'EOS', 'SNT', 'HMQ', 'PLU', 'BAT', 'ADT']
-let blacklist = ['BAT', 'PLU', 'ADT']
+  'VERI', 'PPT', 'PAY', 'PLR', 'DICE',
+  'XRL', 'EOS', 'SNT', 'FUN', 'BTH',
+  'FUCK', 'ADX', 'BAT', 'OMG'
+];
+coins = [
+  'PAY',
+  'EOS', 'SNT', 'FUN',
+  'ADX', 'BAT', 'OMG'
+];
+let blacklist = ['OMG', 'BAT'];
 // TEMP
-// blacklist = ['PAY', 'FUN', 'ADX', 'EOS', 'SNT', 'HMQ', 'PLU', 'BAT', 'ADT']
+// blacklist = [
+//   'VERI', 'PPT', 'PAY', 'PLR', 'DICE',
+//   'XRL', 'EOS', 'SNT', 'FUN', 'BTH',
+//   'FUCK', 'ADX', 'BAT', 'OMG'
+// ];
 
 let markets = {}
 
 try {
-  conn.connect();
+  //conn.connect();
   mainLoop(conn);
-  setInterval(mainLoop, 60000);
+  setInterval(() => { mainLoop(conn) }, 60000);
 }
 finally {
   //conn.end();
