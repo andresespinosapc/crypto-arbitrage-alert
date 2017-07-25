@@ -235,7 +235,14 @@ let mainLoop = (conn) => {
             let query = 'INSERT INTO trade (website, type, base_coin, trade_coin, price, base_amount, website_timestamp)' +
                         'VALUES ("ethereum", ?, "ETH", ?, ?, ?, ?)';
             conn.query(query, [type, tradeCoin, price.toNumber(), baseAmount.toNumber(), timestamp], (err, results, fields) => {
-              if (err) logger.error(err);
+              if (err) {
+                if (err.code == 'ER_DUP_ENTRY') {
+                  logger.info('Skipping trade duplicate entry');
+                }
+                else {
+                  logger.error(err);
+                }
+              }
             });
           }
         });
