@@ -2,6 +2,9 @@ const request = require('request');
 const mysql = require('mysql');
 const Combinatorics = require('js-combinatorics');
 const winston = require('winston');
+const TS = require('./transactor.js');
+const websites = require('./websites/exports.js');
+const utils = require('./utils.js');
 
 
 let logger = new winston.Logger({
@@ -173,7 +176,7 @@ let mainLoop = (conn) => {
           try {
             let diff = Math.abs(1 - markets[market1][coin].ask / markets[market2][coin].ask);
             console.log(market1 + '-' + market2 + ': ' + diff);
-            if (diff >= 0.1 && !(coin in blacklist)) {
+            if (diff >= 0.1 && blacklist.indexOf(coin) == -1) {
               let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
               options = {
                 uri: 'https://api.telegram.org/bot423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU/sendMessage',
@@ -190,6 +193,53 @@ let mainLoop = (conn) => {
           }
         });
       });
+    });
+
+    // Get trades from EtherDelta and save in database
+    myWebsites.etherdelta.getTrades((err, trades) => {
+      if (err) logger.error('Getting etherdelta trade data: ' + err);
+      else {
+        logger.info('Trades gotten');
+        //logger.info(trades);
+        Object.keys(trades.events).forEach((key) => {
+          let event = trades.events[key];
+          if (event.event == 'Trade') {
+            let data = event.args;
+            let type, tradeCoin, price, baseAmount;
+            let timestamp = new Date(parseInt(event.timeStamp, 16) * 1000);
+            let tokenGet = utils.getToken(data.tokenGet);
+            if (tokenGet === undefined) {
+              logger.info('Error processing trade for token ' + data.tokenGet);
+              return;
+            }
+            let tokenGive = utils.getToken(data.tokenGive);
+            if (tokenGive === undefined) {
+              logger.info('Error processing trade for token ' + data.tokenGive);
+              return;
+            }
+            let amountGet = utils.argToAmount(data.amountGet, tokenGet.decimals);
+            let amountGive = utils.argToAmount(data.amountGive, tokenGive.decimals);
+            if (amountGet === undefined) return;
+            if (tokenGet.name == 'ETH') {
+              type = 'sell';
+              tradeCoin = tokenGive.name;
+              price = amountGet.dividedBy(amountGive);
+              baseAmount = amountGet;
+            }
+            else {
+              type = 'buy';
+              tradeCoin = tokenGet.name;
+              price = amountGive.dividedBy(amountGet);
+              baseAmount = amountGive;
+            }
+            let query = 'INSERT INTO trade (website, type, base_coin, trade_coin, price, base_amount, website_timestamp)' +
+                        'VALUES ("ethereum", ?, "ETH", ?, ?, ?, ?)';
+            conn.query(query, [type, tradeCoin, price.toNumber(), baseAmount.toNumber(), timestamp], (err, results, fields) => {
+              if (err) logger.error(err);
+            });
+          }
+        });
+      }
     });
   }
   catch (err) {
@@ -223,6 +273,14 @@ let blacklist = ['OMG', 'BAT'];
 // ];
 
 let markets = {}
+
+var privateKey = Buffer.from(process.env.PRIV, 'hex');
+TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
+let myWebsites = {
+  etherdelta: new websites.EtherDelta(TS),
+  bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
+  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
+}
 
 try {
   //conn.connect();

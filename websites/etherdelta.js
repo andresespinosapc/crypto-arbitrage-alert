@@ -279,21 +279,21 @@ class EtherDelta extends Website{
   getTrades(callback)
   {
     var qs = {
-      module:'proxy',
-      action:'eth_blockNumber',
-      apikey:etherScanApiKey
+      module: 'proxy',
+      action: 'eth_blockNumber',
+      apikey: etherScanApiKey
     }
     // TODO use INFURA node to get blockNumber
-    request({uri:etherScanUri, qs:qs}, (err, response, body)=>{
-      if(err) callback(err)
-      else{
+    request({ uri: etherScanUri, qs: qs }, (err, response, body)=>{
+      if (err) callback(err);
+      else {
         let res = JSON.parse(body);
         let blockNumber = parseInt(res.result, 16);
         let apiServerNonce = this.getNonce();
         console.log('NEW NONCE', apiServerNonce);
         request.get(`${this.config.apiServer}/events/${apiServerNonce}/${blockNumber}`, (err, response, body)=>{
-          if(err) callback(err);
-          else{
+          if (err) callback(err);
+          else {
             let trades = JSON.parse(body);
             this.eventsLock.lock(()=>{
               this.eventsCache = trades;
@@ -327,7 +327,7 @@ class EtherDelta extends Website{
               var trade = {
                 amountGet,
                 amountGive,
-                rate:amountGive.dividedBy(amountGet),
+                rate: amountGive.dividedBy(amountGet),
                 timestamp: new Date(parseInt(event.timeStamp, 16) * 1000)
               }
               trades.push(trade)
@@ -338,7 +338,7 @@ class EtherDelta extends Website{
                var trade = {
                  amountGet,
                  amountGive,
-                 rate:amountGive.dividedBy(amountGet),
+                 rate: amountGive.dividedBy(amountGet),
                  timestamp: new Date(parseInt(event.timeStamp, 16) * 1000)
                }
                trades.push(trade);
