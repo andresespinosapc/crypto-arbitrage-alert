@@ -25,10 +25,10 @@ let logger = new winston.Logger({
     }),
     new (winston.transports.File)({
       name: 'error-file',
-      handleExceptions: false,
+      handleExceptions: true,
       filename: 'alert_diff.log',
       level: 'error'
-    })
+    }),
   ]
 });
 

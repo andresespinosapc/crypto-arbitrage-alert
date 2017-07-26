@@ -17,7 +17,7 @@ let myWebsites = {
 //   else console.log(data);
 // });
 
-myWebsites.etherdelta.deposit('ADX', 453.364, (err) => {
+myWebsites.etherdelta.deposit('ADX', 0.006, (err) => {
   if (err) console.log(err);
   else {
     console.log('yeah');
@@ -29,7 +29,7 @@ myWebsites.etherdelta.deposit('ADX', 453.364, (err) => {
 //   else console.log('Withdrawal successfull');
 // });
 
-// myWebsites.etherdelta.withdraw('FUN', 0.04, (err) => {
+// myWebsites.etherdelta.withdraw('ETH', 1, (err) => {
 //   if (err) console.log(err);
 //   else console.log('Withdrawal successfull');
 // });
