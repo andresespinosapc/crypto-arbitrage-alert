@@ -8,7 +8,7 @@ const TELEGRAM_BOT_TOKEN = '423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU';
 
 let userSettings = {
   chatId: TELEGRAM_CHAT_ID,
-  coins: ['PAY', 'EOS', 'SNT', 'FUN', 'ADX', 'BAT', 'OMG'],
+  coins: ['PAY', 'EOS', 'SNT', 'FUN', 'ADX', 'BAT', 'OMG', 'NET', 'BNT'],
   blacklist: ['OMG', 'BAT'],
   arbitrageAlert: true,
   etherdeltaDiffAlert: true
@@ -41,13 +41,21 @@ bot.onText(/toggle arbitrage/, (msg, match) => {
   }
 });
 
-bot.onText(/remove from blacklist (.+)/, (msg, match) => {
+bot.onText(/add coin (.+)/, (msg, match) => {
   if (msg.chat.id == TELEGRAM_CHAT_ID) {
     const arg = match[1];
-    let index = userSettings.blacklist.indexOf(arg);
+    userSettings.coins.push(arg)
+    bot.sendMessage(userSettings.chatId, 'Coin added. ' + JSON.stringify(userSettings.coins));
+  }
+});
+
+bot.onText(/remove coin (.+)/, (msg, match) => {
+  if (msg.chat.id == TELEGRAM_CHAT_ID) {
+    const arg = match[1];
+    let index = userSettings.coins.indexOf(arg);
     if (index > -1) {
       userSettings.blacklist.splice(index, 1);
-      bot.sendMessage(userSettings.chatId, 'Ok, done');
+      bot.sendMessage(userSettings.chatId, 'Coin removed. ' + JSON.stringify(userSettings.coins));
     }
     else {
       bot.sendMessage(userSettings.chatId, 'Mmm not in the list');
@@ -55,10 +63,24 @@ bot.onText(/remove from blacklist (.+)/, (msg, match) => {
   }
 });
 
-bot.onText(/add to blacklist (.+)/, (msg, match) => {
+bot.onText(/remove blacklist (.+)/, (msg, match) => {
+  if (msg.chat.id == TELEGRAM_CHAT_ID) {
+    const arg = match[1];
+    let index = userSettings.blacklist.indexOf(arg);
+    if (index > -1) {
+      userSettings.blacklist.splice(index, 1);
+      bot.sendMessage(userSettings.chatId, 'Ok, removed. ' + JSON.stringify(userSettings.blacklist));
+    }
+    else {
+      bot.sendMessage(userSettings.chatId, 'Mmm not in the list');
+    }
+  }
+});
+
+bot.onText(/blacklist (.+)/, (msg, match) => {
   const arg = match[1];
   userSettings.blacklist.push(arg);
-  bot.sendMessage(userSettings.chatId, 'Ok, done');
+  bot.sendMessage(userSettings.chatId, 'Ok, added. ' + JSON.stringify(userSettings.blacklist));
 });
 
 bot.onText(/show coins/, (msg, match) => {
