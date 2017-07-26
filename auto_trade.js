@@ -12,13 +12,10 @@ let myWebsites = {
   liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
 }
 
-myWebsites.etherdelta.getTrades((err, trades) => {
+myWebsites.etherdelta.getOrders('ETH', 'SNT', 1, (err, orders) => {
   if (err) console.log(err);
   else {
-    console.log(trades);
-    Object.keys(trades.events).forEach((key) => {
-      console.log(trades.events[key].args);
-    });
+    console.log(orders);
   }
 });
 

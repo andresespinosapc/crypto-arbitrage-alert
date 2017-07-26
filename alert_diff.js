@@ -30,6 +30,20 @@ let logger = new winston.Logger({
   ]
 });
 
+let TELEGRAM_CHAT_ID = 8834684;
+let TELEGRAM_BOT_TOKEN = '423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU';
+
+let sendTelegramMessage = async (message) => {
+  let options = {
+    uri: `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    qs: {
+      'chat_id': TELEGRAM_CHAT_ID,
+      'text': message
+    }
+  }
+  request(options);
+}
+
 
 let mainLoop = (conn) => {
   try {
@@ -44,11 +58,20 @@ let mainLoop = (conn) => {
       markets.kraken = {}
       Object.keys(dataEtherDelta).forEach((coin) => {
         let value = dataEtherDelta[coin];
-        markets.etherdelta[coin.replace('ETH_', '')] = {
+        let coinName = coin.replace('ETH_', '');
+        let ask = parseFloat(value.ask);
+        let bid = parseFloat(value.bid);
+        markets.etherdelta[coinName] = {
           last: parseFloat(value.last),
-          ask: parseFloat(value.ask),
-          bid: parseFloat(value.bid),
+          ask: ask,
+          bid: bid,
           dailyVolume: parseFloat(value.baseVolume)
+        }
+        let diff = bid / ask;
+        logger.info('Found a difference of ' + diff + ' on ' + coinName);
+        if (diff >= 1.1) {
+          let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
+          sendTelegramMessage(message);
         }
       });
 
@@ -178,14 +201,7 @@ let mainLoop = (conn) => {
             console.log(market1 + '-' + market2 + ': ' + diff);
             if (diff >= 0.1 && blacklist.indexOf(coin) == -1) {
               let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
-              options = {
-                uri: 'https://api.telegram.org/bot423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU/sendMessage',
-                qs: {
-                  'chat_id': 8834684,
-                  'text': message
-                }
-              }
-              request(options);
+              sendTelegramMessage(message);
             }
           }
           catch (err) {
@@ -248,6 +264,22 @@ let mainLoop = (conn) => {
         });
       }
     });
+
+    // Get orders from EtherDelta and save in database
+    // allCoins.forEach((coin) => {
+    //   myWebsites.etherdelta.getOrders('ETH', coin, 10, (err, orders) => {
+    //     if (err) logger.error(err);
+    //     else {
+    //       let diff = orders.buy[0].price / orders.sell[0].price;
+    //       console.log(orders);
+    //       logger.info('Found a difference of ' + diff + ' on ' + coin);
+    //       if (diff >= 1.1) {
+    //         let message = `URGENTE: Hay una diferencia de ${diff} en ${coin} en etherdelta`;
+    //         sendTelegramMessage(message);
+    //       }
+    //     }
+    //   });
+    // });
   }
   catch (err) {
     logger.error(err);
@@ -261,12 +293,12 @@ let conn = mysql.createPool({
   database: 'crypto'
 });
 
-let coins = [
+let allCoins = [
   'VERI', 'PPT', 'PAY', 'PLR', 'DICE',
   'XRL', 'EOS', 'SNT', 'FUN', 'BTH',
   'FUCK', 'ADX', 'BAT', 'OMG'
 ];
-coins = [
+let coins = [
   'PAY',
   'EOS', 'SNT', 'FUN',
   'ADX', 'BAT', 'OMG'
