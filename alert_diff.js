@@ -28,15 +28,11 @@ let logger = new winston.Logger({
       handleExceptions: false,
       filename: 'alert_diff.log',
       level: 'error'
-    }),
-    new (winston.transports.File)({
-      name: 'exceptions-file',
-      handleExceptions: true,
-      filename: 'alert_diff_exceptions.log',
-      level: 'error'
     })
   ]
 });
+
+winston.handleExceptions(new winston.transports.File({ filename: 'alert_diff_exceptions.log' }));
 
 
 let mainLoop = (conn, bot, userSettings) => {
