@@ -32,8 +32,6 @@ let logger = new winston.Logger({
   ]
 });
 
-winston.handleExceptions(new winston.transports.File({ filename: 'alert_diff_exceptions.log' }));
-
 
 let mainLoop = (conn, bot, userSettings) => {
   try {
@@ -282,11 +280,6 @@ let mainLoop = (conn, bot, userSettings) => {
 }
 
 let start = (conn, bot, userSettings) => {
-  logger.on('error', (err) => {
-    let message = `There was a ${err.code} exception, check it out`;
-    bot.sendMessage(userSettings.chatId, message);
-  });
-
   // Run main loop
   mainLoop(conn, bot, userSettings);
   setInterval(() => { mainLoop(conn, bot, userSettings) }, 60000);

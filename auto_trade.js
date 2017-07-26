@@ -12,24 +12,17 @@ let myWebsites = {
   liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
 }
 
-myWebsites.etherdelta.getOrders('ETH', 'SNT', 1, (err, orders) => {
-  if (err) console.log(err);
-  else {
-    console.log(orders);
-  }
-});
-
 // myWebsites.etherdelta.getOrders('ETH', 'HMQ', undefined, (err, data) => {
 //   if (err) console.log(err);
 //   else console.log(data);
 // });
 
-// myWebsites.etherdelta.deposit('EOS', 33.193, (err) => {
-//   if (err) console.log(err);
-//   else {
-//     console.log('yeah');
-//   }
-// });
+myWebsites.etherdelta.deposit('ADX', 451.352, (err) => {
+  if (err) console.log(err);
+  else {
+    console.log('yeah');
+  }
+});
 
 // myWebsites.bittrex.withdraw('FUN', 5364.05125556, (err) => {
 //   if (err) console.log(err);

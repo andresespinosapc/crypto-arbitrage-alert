@@ -102,7 +102,6 @@ class EtherDelta extends Website{
             (errBalanceOf, resultBalanceOf) => {
               if (errBalanceOf) callback(errBalanceOf);
               else {
-                console.log('resultBalanceOf:', resultBalanceOf);
                 if (amount.gt(resultBalanceOf) &&
                   amount.lt(resultBalanceOf.times(new BigNumber(1.1)))) amount = resultBalanceOf;
                 if (amount.lte(resultBalanceOf)) {
