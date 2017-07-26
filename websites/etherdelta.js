@@ -121,9 +121,12 @@ class EtherDelta extends Website{
                             this.transactor.privateKey,
                             this.nonce,
                             (errSend, resultSend) => {
-                              this.nonce = resultSend.nonce;
-                              txs.push(resultSend);
-                              callbackSeries(null, { errSend, resultSend });
+                              if (errSend) callbackSeries(errSend);
+                              else {
+                                this.nonce = resultSend.nonce;
+                                txs.push(resultSend);
+                                callbackSeries(null, { errSend, resultSend });
+                              }
                             });
                         } else {
                           callbackSeries(null, undefined);
@@ -140,9 +143,13 @@ class EtherDelta extends Website{
                           this.transactor.privateKey,
                           this.nonce,
                           (errSend, resultSend) => {
-                            this.nonce = resultSend.nonce;
-                            txs.push(resultSend);
-                            callbackSeries(null, { errSend, resultSend });
+                            if (errSend) callbackSeries(errSend);
+                            else {
+                              console.log(errSend);
+                              this.nonce = resultSend.nonce;
+                              txs.push(resultSend);
+                              callbackSeries(null, { errSend, resultSend });
+                            }
                           });
                       },
                     ],

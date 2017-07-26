@@ -17,7 +17,7 @@ let myWebsites = {
 //   else console.log(data);
 // });
 
-myWebsites.etherdelta.deposit('ADX', 451.352, (err) => {
+myWebsites.etherdelta.deposit('ADX', 453.364, (err) => {
   if (err) console.log(err);
   else {
     console.log('yeah');

@@ -176,11 +176,14 @@ let mainLoop = (pool, bot, userSettings) => {
             let query = 'INSERT INTO ticker (coin1, coin2, website, last, bid, ask, daily_volume)' +
                         'VALUES ("ETH", ?, ?, ?, ?, ?, ?)';
             pool.getConnection((err, conn) => {
-              conn.query(query, [coin, market, value.last, value.bid, value.ask, value.dailyVolume], (err, results, fields) => {
-                conn.release();
-                if (err) console.log(err);
-              });
-              console.log(market + ': ' + JSON.stringify(value));
+              if (err) logger.error(err);
+              else {
+                conn.query(query, [coin, market, value.last, value.bid, value.ask, value.dailyVolume], (err, results, fields) => {
+                  conn.release();
+                  if (err) console.log(err);
+                });
+                console.log(market + ': ' + JSON.stringify(value));
+              }
             });
           }
         });
@@ -247,17 +250,20 @@ let mainLoop = (pool, bot, userSettings) => {
             let query = 'INSERT INTO trade (website, type, base_coin, trade_coin, price, base_amount, website_timestamp)' +
                         'VALUES ("ethereum", ?, "ETH", ?, ?, ?, ?)';
             pool.getConnection((err, conn) => {
-              conn.query(query, [type, tradeCoin, price.toNumber(), baseAmount.toNumber(), timestamp], (err, results, fields) => {
-                conn.release();
-                if (err) {
-                  if (err.code == 'ER_DUP_ENTRY') {
-                    logger.info('Skipping trade duplicate entry');
+              if (err) logger.error(err);
+              else {
+                conn.query(query, [type, tradeCoin, price.toNumber(), baseAmount.toNumber(), timestamp], (err, results, fields) => {
+                  conn.release();
+                  if (err) {
+                    if (err.code == 'ER_DUP_ENTRY') {
+                      logger.info('Skipping trade duplicate entry');
+                    }
+                    else {
+                      logger.error(err);
+                    }
                   }
-                  else {
-                    logger.error(err);
-                  }
-                }
-              });
+                });
+              }
             });
           }
         });
