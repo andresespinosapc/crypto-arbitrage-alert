@@ -282,6 +282,11 @@ let mainLoop = (conn, bot, userSettings) => {
 }
 
 let start = (conn, bot, userSettings) => {
+  logger.on('error', (err) => {
+    let message = `There was a ${err.code} exception, check it out`;
+    bot.sendMessage(userSettings.chatId, message);
+  });
+
   // Run main loop
   mainLoop(conn, bot, userSettings);
   setInterval(() => { mainLoop(conn, bot, userSettings) }, 60000);
