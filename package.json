@@ -18,6 +18,7 @@
     "keythereum": "^1.0.1",
     "locks": "^0.2.2",
     "mysql": "^2.13.0",
+    "node-telegram-bot-api": "^0.27.1",
     "path": "^0.12.7",
     "querystring": "^0.2.0",
     "request": "^2.81.0",

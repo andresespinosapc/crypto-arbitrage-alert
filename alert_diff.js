@@ -1,10 +1,18 @@
 const request = require('request');
-const mysql = require('mysql');
 const Combinatorics = require('js-combinatorics');
-const winston = require('winston');
 const TS = require('./transactor.js');
 const websites = require('./websites/exports.js');
 const utils = require('./utils.js');
+const winston = require('winston');
+
+
+let privateKey = Buffer.from(process.env.PRIV, 'hex');
+TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
+let myWebsites = {
+  etherdelta: new websites.EtherDelta(TS),
+  bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
+  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
+}
 
 
 let logger = new winston.Logger({
@@ -30,23 +38,10 @@ let logger = new winston.Logger({
   ]
 });
 
-let TELEGRAM_CHAT_ID = 8834684;
-let TELEGRAM_BOT_TOKEN = '423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU';
 
-let sendTelegramMessage = async (message) => {
-  let options = {
-    uri: `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-    qs: {
-      'chat_id': TELEGRAM_CHAT_ID,
-      'text': message
-    }
-  }
-  request(options);
-}
-
-
-let mainLoop = (conn) => {
+let mainLoop = (conn, bot, userSettings) => {
   try {
+    let markets = {}
     console.log(new Date());
 
     // Get data from EtherDelta
@@ -67,15 +62,17 @@ let mainLoop = (conn) => {
           bid: bid,
           dailyVolume: parseFloat(value.baseVolume)
         }
-        let diff = bid / ask;
-        logger.info('Found a difference of ' + diff + ' on ' + coinName);
-        if (diff >= 1.1) {
-          let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
-          sendTelegramMessage(message);
+        if (userSettings.etherdeltaDiffAlert) {
+          let diff = bid / ask;
+          logger.info('Found a difference of ' + diff + ' on ' + coinName);
+          if (diff >= 1.1) {
+            let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
+            bot.sendMessage(userSettings.chatId, message);
+          }
         }
       });
 
-      coins.forEach(async (coin) => {
+      userSettings.coins.forEach(async (coin) => {
         let bittrexPromise = new Promise((resolve) => {
           let options = {
             uri: 'https://bittrex.com/api/v1.1/public/getticker',
@@ -199,9 +196,11 @@ let mainLoop = (conn) => {
           try {
             let diff = Math.abs(1 - markets[market1][coin].ask / markets[market2][coin].ask);
             console.log(market1 + '-' + market2 + ': ' + diff);
-            if (diff >= 0.1 && blacklist.indexOf(coin) == -1) {
-              let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
-              sendTelegramMessage(message);
+            if (userSettings.arbitrageAlert) {
+              if (diff >= 0.1 && userSettings.blacklist.indexOf(coin) == -1) {
+                let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
+                bot.sendMessage(userSettings.chatId, message);
+              }
             }
           }
           catch (err) {
@@ -286,46 +285,10 @@ let mainLoop = (conn) => {
   }
 }
 
-let conn = mysql.createPool({
-  host: 'localhost',
-  user: 'andres',
-  password: 'wena',
-  database: 'crypto'
-});
-
-let allCoins = [
-  'VERI', 'PPT', 'PAY', 'PLR', 'DICE',
-  'XRL', 'EOS', 'SNT', 'FUN', 'BTH',
-  'FUCK', 'ADX', 'BAT', 'OMG'
-];
-let coins = [
-  'PAY',
-  'EOS', 'SNT', 'FUN',
-  'ADX', 'BAT', 'OMG'
-];
-let blacklist = ['OMG', 'BAT'];
-// TEMP
-// blacklist = [
-//   'VERI', 'PPT', 'PAY', 'PLR', 'DICE',
-//   'XRL', 'EOS', 'SNT', 'FUN', 'BTH',
-//   'FUCK', 'ADX', 'BAT', 'OMG'
-// ];
-
-let markets = {}
-
-var privateKey = Buffer.from(process.env.PRIV, 'hex');
-TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
-let myWebsites = {
-  etherdelta: new websites.EtherDelta(TS),
-  bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
-  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
+let start = (conn, bot, userSettings) => {
+  // Run main loop
+  mainLoop(conn, bot, userSettings);
+  setInterval(() => { mainLoop(conn, bot, userSettings) }, 60000);
 }
 
-try {
-  //conn.connect();
-  mainLoop(conn);
-  setInterval(() => { mainLoop(conn) }, 60000);
-}
-finally {
-  //conn.end();
-}
+module.exports = { start };
