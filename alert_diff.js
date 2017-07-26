@@ -33,7 +33,7 @@ let logger = new winston.Logger({
 });
 
 
-let mainLoop = (conn, bot, userSettings) => {
+let mainLoop = (pool, bot, userSettings) => {
   try {
     let markets = {}
     console.log(new Date());
@@ -175,10 +175,13 @@ let mainLoop = (conn, bot, userSettings) => {
           if (value) {
             let query = 'INSERT INTO ticker (coin1, coin2, website, last, bid, ask, daily_volume)' +
                         'VALUES ("ETH", ?, ?, ?, ?, ?, ?)';
-            conn.query(query, [coin, market, value.last, value.bid, value.ask, value.dailyVolume], (err, results, fields) => {
-              if (err) console.log(err);
+            pool.getConnection((err, conn) => {
+              conn.query(query, [coin, market, value.last, value.bid, value.ask, value.dailyVolume], (err, results, fields) => {
+                conn.release();
+                if (err) console.log(err);
+              });
+              console.log(market + ': ' + JSON.stringify(value));
             });
-            console.log(market + ': ' + JSON.stringify(value));
           }
         });
 
@@ -243,15 +246,18 @@ let mainLoop = (conn, bot, userSettings) => {
             }
             let query = 'INSERT INTO trade (website, type, base_coin, trade_coin, price, base_amount, website_timestamp)' +
                         'VALUES ("ethereum", ?, "ETH", ?, ?, ?, ?)';
-            conn.query(query, [type, tradeCoin, price.toNumber(), baseAmount.toNumber(), timestamp], (err, results, fields) => {
-              if (err) {
-                if (err.code == 'ER_DUP_ENTRY') {
-                  logger.info('Skipping trade duplicate entry');
+            pool.getConnection((err, conn) => {
+              conn.query(query, [type, tradeCoin, price.toNumber(), baseAmount.toNumber(), timestamp], (err, results, fields) => {
+                conn.release();
+                if (err) {
+                  if (err.code == 'ER_DUP_ENTRY') {
+                    logger.info('Skipping trade duplicate entry');
+                  }
+                  else {
+                    logger.error(err);
+                  }
                 }
-                else {
-                  logger.error(err);
-                }
-              }
+              });
             });
           }
         });
@@ -279,10 +285,10 @@ let mainLoop = (conn, bot, userSettings) => {
   }
 }
 
-let start = (conn, bot, userSettings) => {
+let start = (pool, bot, userSettings) => {
   // Run main loop
-  mainLoop(conn, bot, userSettings);
-  setInterval(() => { mainLoop(conn, bot, userSettings) }, 60000);
+  mainLoop(pool, bot, userSettings);
+  setInterval(() => { mainLoop(pool, bot, userSettings) }, 60000);
 }
 
 module.exports = { start };

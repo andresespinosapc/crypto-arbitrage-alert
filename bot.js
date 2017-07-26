@@ -14,7 +14,7 @@ let userSettings = {
   etherdeltaDiffAlert: true
 };
 
-let conn = mysql.createPool({
+let pool = mysql.createPool({
   host: 'localhost',
   user: 'andres',
   password: 'wena',
@@ -79,4 +79,4 @@ let allCoins = [
   'FUCK', 'ADX', 'BAT', 'OMG'
 ];
 
-AlertDiff.start(conn, bot, userSettings);
+AlertDiff.start(pool, bot, userSettings);
