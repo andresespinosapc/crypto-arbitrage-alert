@@ -8,6 +8,8 @@ const request = require('request');
 const etherScanUri = 'https://api.etherscan.io/api'
 const etherScanApiKey = 'TYM3NSAF9RIAFSNRU5RZJQHI71C784FNK6' // TODO temporal
 const locks = require('locks');
+const sha256 = require('js-sha256').sha256;
+
 
 class EtherDelta extends Website{
   constructor(transactor) {
@@ -262,6 +264,7 @@ class EtherDelta extends Website{
       else {
         let orders = JSON.parse(body);
         let pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, limit);
+        console.log(pairs.buy);
         callback(undefined, {
           buy: pairs.buy.map((elem)=>{
             return {
@@ -282,8 +285,7 @@ class EtherDelta extends Website{
     });
   }
 
-  getTrades(callback)
-  {
+  getTrades(callback) {
     var qs = {
       module: 'proxy',
       action: 'eth_blockNumber',
@@ -312,8 +314,7 @@ class EtherDelta extends Website{
     });
   }
 
-  getTradesByPair(baseCurrency, tradeCurrency)
-  {
+  getTradesByPair(baseCurrency, tradeCurrency) {
     let trades = [];
     let tokenGive = utils.getToken(baseCurrency);
     let baseAddrLower = tokenGive.addr.toLowerCase();
@@ -368,7 +369,150 @@ class EtherDelta extends Website{
 
   buy(){}
 
+  order(direction, amount, price, baseCurrency, tradeCurrency, expires, refresh, callback) {
+    const baseToken = utils.getToken(baseCurrency);
+    const tradeToken = utils.getToken(tradeCurrency);
+    utility.blockNumber(this.transactor.web3, (err, blockNumber) => {
+      const orderObj = {
+        baseAddr: baseToken.addr,
+        tokenAddr: tradeToken.addr,
+        direction,
+        amount,
+        price,
+        expires,
+        refresh,
+        nextExpiration: 0,
+      };
+      if (blockNumber >= orderObj.nextExpiration) {
+        if (orderObj.nextExpiration === 0) {
+          orderObj.nextExpiration = Number(orderObj.expires) + blockNumber;
+          orderObj.nonce = utility.getRandomInt(0,
+            Math.pow(2, 32)); // eslint-disable-line no-restricted-properties
+          this.publishOrder(
+            orderObj.baseAddr,
+            orderObj.tokenAddr,
+            orderObj.direction,
+            orderObj.amount,
+            orderObj.price,
+            orderObj.nextExpiration,
+            orderObj.nonce,
+            callback);
+        }
+      }
+    });
+  };
 
+  publishOrder(baseAddr, tokenAddr, direction, amount, price, expires, orderNonce, callback) {
+    let tokenGet;
+    let tokenGive;
+    let amountGet;
+    let amountGive;
+
+    if (direction === 'buy') {
+      tokenGet = tokenAddr;
+      tokenGive = baseAddr;
+      amountGet = Math.floor(utility.ethToWei(amount, this.getDivisor(tokenGet)));
+      const amountGetEth = utility.weiToEth(amountGet, this.getDivisor(tokenGet));
+      amountGive = Math.floor(utility.ethToWei(amountGetEth * price, this.getDivisor(tokenGive)));
+    }
+    else if (direction === 'sell') {
+      tokenGet = baseAddr;
+      tokenGive = tokenAddr;
+      amountGive = Math.floor(utility.ethToWei(amount, this.getDivisor(tokenGive)));
+      const amountGiveEth = utility.weiToEth(amountGive, this.getDivisor(tokenGive));
+      amountGet = Math.ceil(utility.ethToWei(amountGiveEth * price, this.getDivisor(tokenGet)));
+    }
+    else {
+      console.log('Invalid order direction');
+      return;
+    }
+    utility.call(
+      this.transactor.web3,
+      this.contractEtherDelta,
+      this.config.contractEtherDeltaAddr,
+      'balanceOf',
+      [tokenGive, this.transactor.address],
+      (err, result) => {
+        if (err) callback(err);
+        else {
+          const balance = result;
+          if (balance.lt(new BigNumber(amountGive))) {
+            callback('You do not have enough funds');
+            return;
+          }
+          else if (!this.config.ordersOnchain) {
+            // offchain order
+            const condensed = utility.pack(
+              [
+                this.config.contractEtherDeltaAddr,
+                tokenGet,
+                amountGet,
+                tokenGive,
+                amountGive,
+                expires,
+                orderNonce,
+              ],
+              [160, 160, 256, 160, 256, 256, 256]);
+            const hash = sha256(new Buffer(condensed, 'hex'));
+            utility.sign(this.transactor.web3, this.transactor.address,
+            hash, this.transactor.privateKey, (errSign, sig) => {
+              if (errSign) callback(errSign);
+              else {
+                // Send order to offchain book:
+                const order = {
+                  contractAddr: this.config.contractEtherDeltaAddr,
+                  tokenGet,
+                  amountGet,
+                  tokenGive,
+                  amountGive,
+                  expires,
+                  nonce: orderNonce,
+                  v: sig.v,
+                  r: sig.r,
+                  s: sig.s,
+                  user: this.transactor.address,
+                };
+                console.log('Sending order to the order book...');
+                utility.postURL(
+                  `${this.config.apiServer}/message`,
+                  { message: JSON.stringify(order) },
+                  (errPost) => {
+                    if (errPost) callback(errPost);
+                    else callback(undefined);
+                });
+              }
+            });
+          }
+          else {
+            // onchain order
+            utility.send(
+              this.web3,
+              this.contractEtherDelta,
+              this.config.contractEtherDeltaAddr,
+              'order',
+              [
+                tokenGet,
+                amountGet,
+                tokenGive,
+                amountGive,
+                expires,
+                orderNonce,
+                { gas: this.config.gasOrder, value: 0 },
+              ],
+              this.transactor.address,
+              this.transactor.privateKey,
+              this.nonce,
+              (errSend, resultSend) => {
+                if (errSend) callback(errSend);
+                else {
+                  this.nonce = resultSend.nonce;
+                  callback(undefined, { txHash: resultSend.txHash });
+                }
+              });
+          }
+        }
+      });
+  };
 
 }
 

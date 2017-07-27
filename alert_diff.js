@@ -197,9 +197,24 @@ let mainLoop = (pool, bot, userSettings) => {
             let diff = Math.abs(1 - markets[market1][coin].ask / markets[market2][coin].ask);
             console.log(market1 + '-' + market2 + ': ' + diff);
             if (userSettings.arbitrageAlert) {
+              // Notify if there ir a difference of 10% or more between websites
               if (diff >= 0.1 && userSettings.blacklist.indexOf(coin) == -1) {
                 let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
                 bot.sendMessage(userSettings.chatId, message);
+              }
+
+              // Notify if etherdelta is cheaper than other website
+              if (market1 == 'etherdelta') {
+                if (markets[market2][coin].last / markets[market1][coin].ask >= 1.05) {
+                  let message = `URGETE: Esta mas barato ${coin} en etherdelta que en ${market2}`
+                  bot.sendMessage(userSettings.chatId, message);
+                }
+              }
+              else if (market2 == 'etherdelta') {
+                if (markets[market1][coin].last / markets[market2][coin].ask >= 1.05) {
+                  let message = `URGETE: Esta mas barato ${coin} en etherdelta que en ${market1}`
+                  bot.sendMessage(userSettings.chatId, message);
+                }
               }
             }
           }
