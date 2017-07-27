@@ -22,7 +22,7 @@ let logger = new winston.Logger({
 });
 
 
-let mainLoop = (pool, bot, userSettings) => {
+let mainLoop = (pool, bot, userSettings, myWebsites) => {
   try {
     let markets = {}
     console.log(new Date());
@@ -191,11 +191,12 @@ let mainLoop = (pool, bot, userSettings) => {
                 let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
                 bot.sendMessage(userSettings.chatId, message);
               }
-
+            }
+            if (userSettings.etherdeltaCheapAlert) {
               // Notify if etherdelta is cheaper than other website
               if (market1 == 'etherdelta') {
                 if (markets[market2][coin].last / markets[market1][coin].ask >= 1.05) {
-                  let message = `URGETE: Esta mas barato ${coin} en etherdelta que en ${market2}`
+                  let message = `URGENTE: Esta mas barato ${coin} en etherdelta que en ${market2}`
                   bot.sendMessage(userSettings.chatId, message);
                 }
               }

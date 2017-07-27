@@ -21,7 +21,8 @@ let userSettings = {
   coins: ['PAY', 'EOS', 'SNT', 'FUN', 'ADX', 'BAT', 'OMG', 'NET', 'BNT'],
   blacklist: ['OMG', 'BAT'],
   arbitrageAlert: true,
-  etherdeltaDiffAlert: true
+  etherdeltaDiffAlert: true,
+  etherdeltaCheapAlert: true
 };
 
 let pool = mysql.createPool({
@@ -53,6 +54,14 @@ bot.onText(/(buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
         });
       }
     });
+  }
+});
+
+bot.onText(/toggle ethdelta cheap/, (msg, match) => {
+  if (msg.chat.id == TELEGRAM_CHAT_ID) {
+    userSettings.etherdeltaCheapAlert = !userSettings.etherdeltaCheapAlert;
+    let currentState = (userSettings.etherdeltaCheapAlert) ? 'ON' : 'OFF';
+    bot.sendMessage(userSettings.chatId, 'Ok, now it is ' + currentState);
   }
 });
 
