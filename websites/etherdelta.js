@@ -254,7 +254,8 @@ class EtherDelta extends Website{
       });
   };
 
-  getOrders(baseCurrency, tradeCurrency, limit, callback) {
+  // Options: {limit, areMyOrders}
+  getOrders(baseCurrency, tradeCurrency, options, callback) {
     let apiServerNonce = this.getNonce();
     // CURRENCIES MUST
     let baseToken = utils.getToken(tradeCurrency);
@@ -262,25 +263,53 @@ class EtherDelta extends Website{
     request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${baseToken.addr}/${tradeToken.addr}`, (err, response, body) => {
       if (err) callback(err);
       else {
-        let orders = JSON.parse(body);
-        let pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, limit);
-        console.log(pairs.buy);
-        callback(undefined, {
-          buy: pairs.buy.map((elem)=>{
-            return {
-              price:new BigNumber(elem.price).toNumber(),
-              quantity:utils.argToAmount(elem.amount, baseToken.decimals)
-              .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
-            }
-          }),
-          sell: pairs.sell.map((elem)=>{
-            return {
-              price:new BigNumber(elem.price).toNumber(),
-              quantity:utils.argToAmount(-elem.amount, baseToken.decimals)
-              .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
-            }
-          })
-        });
+        let orders = JSON.parse(body).orders;
+        let pairs;
+        if (options.areMyOrders) {
+          // Only include orders by the selected user
+          orders = orders.filter(
+            order => this.transactor.address.toLowerCase() === order.order.user.toLowerCase());
+          pairs = utils.ordersByPair(orders, baseToken.addr, tradeToken.addr, options.limit);
+
+          callback(undefined, {
+            buy: pairs.buy.map((elem)=>{
+              return {
+                price: new BigNumber(elem.price).toNumber(),
+                amount: utils.argToAmount(elem.amount, baseToken.decimals).toNumber(),
+                amountFilled: utils.argToAmount(elem.amountFilled, baseToken.decimals).toNumber(),
+                nonce: elem.order.nonce
+              }
+            }),
+            sell: pairs.sell.map((elem)=>{
+              return {
+                price: new BigNumber(elem.price).toNumber(),
+                amount: utils.argToAmount(-elem.amount, baseToken.decimals).toNumber(),
+                amountFilled: utils.argToAmount(elem.amountFilled, baseToken.decimals).toNumber(),
+                nonce: elem.order.nonce
+              }
+            })
+          });
+        }
+        else {
+          pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, options.limit);
+
+          callback(undefined, {
+            buy: pairs.buy.map((elem)=>{
+              return {
+                price:new BigNumber(elem.price).toNumber(),
+                quantity:utils.argToAmount(elem.amount, baseToken.decimals)
+                .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
+              }
+            }),
+            sell: pairs.sell.map((elem)=>{
+              return {
+                price:new BigNumber(elem.price).toNumber(),
+                quantity:utils.argToAmount(-elem.amount, baseToken.decimals)
+                .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
+              }
+            })
+          });
+        }
       }
     });
   }
@@ -402,6 +431,26 @@ class EtherDelta extends Website{
     });
   };
 
+  waitForOrder(direction, baseCurrency, tradeCurrency, orderNonce, callback) {
+    console.log('Waiting order...');
+    this.getOrders(baseCurrency, tradeCurrency, { areMyOrders: true }, (err, pairs) => {
+      if (err) callback(err);
+      else {
+        let found = pairs[direction].find((elem) => {
+          if (elem.nonce == orderNonce) return true;
+        });
+        if (!found) {
+          callback(undefined);
+        }
+        else {
+          setTimeout(() => {
+            this.waitForOrder(direction, baseCurrency, tradeCurrency, orderNonce, callback);
+          }, 60000);
+        }
+      }
+    });
+  }
+
   publishOrder(baseAddr, tokenAddr, direction, amount, price, expires, orderNonce, callback) {
     let tokenGet;
     let tokenGive;
@@ -477,8 +526,12 @@ class EtherDelta extends Website{
                   `${this.config.apiServer}/message`,
                   { message: JSON.stringify(order) },
                   (errPost) => {
+                    // There is no body response
                     if (errPost) callback(errPost);
-                    else callback(undefined);
+                    else {
+                      // Notify when order is complete
+                      callback(undefined, orderNonce);
+                    }
                 });
               }
             });

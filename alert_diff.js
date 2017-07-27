@@ -1,18 +1,7 @@
 const request = require('request');
 const Combinatorics = require('js-combinatorics');
-const TS = require('./transactor.js');
-const websites = require('./websites/exports.js');
 const utils = require('./utils.js');
 const winston = require('winston');
-
-
-let privateKey = Buffer.from(process.env.PRIV, 'hex');
-TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
-let myWebsites = {
-  etherdelta: new websites.EtherDelta(TS),
-  bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
-  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
-}
 
 
 let logger = new winston.Logger({
@@ -306,10 +295,10 @@ let mainLoop = (pool, bot, userSettings) => {
   }
 }
 
-let start = (pool, bot, userSettings) => {
+let start = (pool, bot, userSettings, myWebsites) => {
   // Run main loop
-  mainLoop(pool, bot, userSettings);
-  setInterval(() => { mainLoop(pool, bot, userSettings) }, 60000);
+  mainLoop(pool, bot, userSettings, myWebsites);
+  setInterval(() => { mainLoop(pool, bot, userSettings, myWebsites) }, 60000);
 }
 
 module.exports = { start };
