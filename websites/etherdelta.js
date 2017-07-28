@@ -248,10 +248,9 @@ class EtherDelta extends Website{
 
   getOrders(baseCurrency, tradeCurrency, limit, callback) {
     let apiServerNonce = this.getNonce();
-    // CURRENCIES MUST
-    let baseToken = utils.getToken(tradeCurrency);
-    let tradeToken = utils.getToken(baseCurrency);
-    request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${baseToken.addr}/${tradeToken.addr}`, (err, response, body) => {
+    let baseToken = utils.getToken(baseCurrency);
+    let tradeToken = utils.getToken(tradeCurrency);
+    request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${tradeToken.addr}/${baseToken.addr}`, (err, response, body) => {
       if (err) callback(err);
       else {
         let orders = JSON.parse(body);
@@ -259,16 +258,16 @@ class EtherDelta extends Website{
         callback(undefined, {
           buy: pairs.buy.map((elem)=>{
             return {
-              price:new BigNumber(elem.price).toNumber(),
-              quantity:utils.argToAmount(elem.amount, baseToken.decimals)
-              .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
+              price:parseFloat(elem.price),
+              amount:parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+              baseAmount:parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
             }
           }),
           sell: pairs.sell.map((elem)=>{
             return {
-              price:new BigNumber(elem.price).toNumber(),
-              quantity:utils.argToAmount(-elem.amount, baseToken.decimals)
-              .minus(utils.argToAmount(elem.amountFilled, baseToken.decimals)).toNumber()
+              price:parseFloat(elem.price),
+              amount:parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+              baseAmount:parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
             }
           })
         });
