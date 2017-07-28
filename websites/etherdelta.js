@@ -8,6 +8,8 @@ const request = require('request');
 const etherScanUri = 'https://api.etherscan.io/api'
 const etherScanApiKey = 'TYM3NSAF9RIAFSNRU5RZJQHI71C784FNK6' // TODO temporal
 const locks = require('locks');
+const sha256 = require('js-sha256').sha256;
+
 
 class EtherDelta extends Website{
   constructor(transactor) {
@@ -102,7 +104,6 @@ class EtherDelta extends Website{
             (errBalanceOf, resultBalanceOf) => {
               if (errBalanceOf) callback(errBalanceOf);
               else {
-                console.log('resultBalanceOf:', resultBalanceOf);
                 if (amount.gt(resultBalanceOf) &&
                   amount.lt(resultBalanceOf.times(new BigNumber(1.1)))) amount = resultBalanceOf;
                 if (amount.lte(resultBalanceOf)) {
@@ -122,9 +123,12 @@ class EtherDelta extends Website{
                             this.transactor.privateKey,
                             this.nonce,
                             (errSend, resultSend) => {
-                              this.nonce = resultSend.nonce;
-                              txs.push(resultSend);
-                              callbackSeries(null, { errSend, resultSend });
+                              if (errSend) callbackSeries(errSend);
+                              else {
+                                this.nonce = resultSend.nonce;
+                                txs.push(resultSend);
+                                callbackSeries(null, { errSend, resultSend });
+                              }
                             });
                         } else {
                           callbackSeries(null, undefined);
@@ -141,9 +145,13 @@ class EtherDelta extends Website{
                           this.transactor.privateKey,
                           this.nonce,
                           (errSend, resultSend) => {
-                            this.nonce = resultSend.nonce;
-                            txs.push(resultSend);
-                            callbackSeries(null, { errSend, resultSend });
+                            if (errSend) callbackSeries(errSend);
+                            else {
+                              console.log(errSend);
+                              this.nonce = resultSend.nonce;
+                              txs.push(resultSend);
+                              callbackSeries(null, { errSend, resultSend });
+                            }
                           });
                       },
                     ],
@@ -246,53 +254,83 @@ class EtherDelta extends Website{
       });
   };
 
-  getOrders(baseCurrency, tradeCurrency, limit, callback) {
+  // Options: {limit, areMyOrders}
+  getOrders(baseCurrency, tradeCurrency, options, callback) {
     let apiServerNonce = this.getNonce();
     let baseToken = utils.getToken(baseCurrency);
     let tradeToken = utils.getToken(tradeCurrency);
     request.get(`${this.config.apiServer}/orders/${apiServerNonce}/${tradeToken.addr}/${baseToken.addr}`, (err, response, body) => {
       if (err) callback(err);
       else {
-        let orders = JSON.parse(body);
-        let pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, limit);
-        callback(undefined, {
-          buy: pairs.buy.map((elem)=>{
-            return {
-              price:parseFloat(elem.price),
-              amount:parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
-              baseAmount:parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
-            }
-          }),
-          sell: pairs.sell.map((elem)=>{
-            return {
-              price:parseFloat(elem.price),
-              amount:parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
-              baseAmount:parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
-            }
-          })
-        });
+        let orders = JSON.parse(body).orders;
+        let pairs;
+        if (options.areMyOrders) {
+          // Only include orders by the selected user
+          orders = orders.filter(
+            order => this.transactor.address.toLowerCase() === order.order.user.toLowerCase());
+          pairs = utils.ordersByPair(orders, baseToken.addr, tradeToken.addr, options.limit);
+
+          callback(undefined, {
+            buy: pairs.buy.map((elem)=>{
+              return {
+                price: parseFloat(elem.price),
+                amount: parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+                amountFilled: parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
+                nonce: elem.order.nonce
+              }
+            }),
+            sell: pairs.sell.map((elem)=>{
+              return {
+                price: parseFloat(elem.price),
+                amount: parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+                amountFilled: parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
+                nonce: elem.order.nonce
+              }
+            })
+          });
+        }
+        else {
+          pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, options.limit);
+
+          callback(undefined, {
+            buy: pairs.buy.map((elem)=>{
+              return {
+                price:parseFloat(elem.price),
+                amount:parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+                baseAmount:parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals)
+              }
+            }),
+            sell: pairs.sell.map((elem)=>{
+              return {
+                price: parseFloat(elem.price),
+                amount: parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+                amountFilled: parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
+                nonce: elem.order.nonce
+              }
+            })
+          });
+        }
       }
     });
   }
 
-  getTrades(callback)
-  {
+  getTrades(callback) {
     var qs = {
-      module:'proxy',
-      action:'eth_blockNumber',
-      apikey:etherScanApiKey
+      module: 'proxy',
+      action: 'eth_blockNumber',
+      apikey: etherScanApiKey
     }
     // TODO use INFURA node to get blockNumber
-    request({uri:etherScanUri, qs:qs}, (err, response, body)=>{
-      if(err) callback(err)
-      else{
+    request({ uri: etherScanUri, qs: qs }, (err, response, body)=>{
+      if (err) callback(err);
+      else {
         let res = JSON.parse(body);
         let blockNumber = parseInt(res.result, 16);
         let apiServerNonce = this.getNonce();
         console.log('NEW NONCE', apiServerNonce);
         request.get(`${this.config.apiServer}/events/${apiServerNonce}/${blockNumber}`, (err, response, body)=>{
-          if(err) callback(err);
-          else{
+          if (err) callback(err);
+          else {
             let trades = JSON.parse(body);
             this.eventsLock.lock(()=>{
               this.eventsCache = trades;
@@ -305,8 +343,7 @@ class EtherDelta extends Website{
     });
   }
 
-  getTradesByPair(baseCurrency, tradeCurrency)
-  {
+  getTradesByPair(baseCurrency, tradeCurrency) {
     let trades = [];
     let tokenGive = utils.getToken(baseCurrency);
     let baseAddrLower = tokenGive.addr.toLowerCase();
@@ -326,7 +363,7 @@ class EtherDelta extends Website{
               var trade = {
                 amountGet,
                 amountGive,
-                rate:amountGive.dividedBy(amountGet),
+                rate: amountGive.dividedBy(amountGet),
                 timestamp: new Date(parseInt(event.timeStamp, 16) * 1000)
               }
               trades.push(trade)
@@ -337,7 +374,7 @@ class EtherDelta extends Website{
                var trade = {
                  amountGet,
                  amountGive,
-                 rate:amountGive.dividedBy(amountGet),
+                 rate: amountGive.dividedBy(amountGet),
                  timestamp: new Date(parseInt(event.timeStamp, 16) * 1000)
                }
                trades.push(trade);
@@ -361,7 +398,174 @@ class EtherDelta extends Website{
 
   buy(){}
 
+  order(direction, amount, price, baseCurrency, tradeCurrency, expires, refresh, callback) {
+    const baseToken = utils.getToken(baseCurrency);
+    const tradeToken = utils.getToken(tradeCurrency);
+    utility.blockNumber(this.transactor.web3, (err, blockNumber) => {
+      const orderObj = {
+        baseAddr: baseToken.addr,
+        tokenAddr: tradeToken.addr,
+        direction,
+        amount,
+        price,
+        expires,
+        refresh,
+        nextExpiration: 0,
+      };
+      if (blockNumber >= orderObj.nextExpiration) {
+        if (orderObj.nextExpiration === 0) {
+          orderObj.nextExpiration = Number(orderObj.expires) + blockNumber;
+          orderObj.nonce = utility.getRandomInt(0,
+            Math.pow(2, 32)); // eslint-disable-line no-restricted-properties
+          this.publishOrder(
+            orderObj.baseAddr,
+            orderObj.tokenAddr,
+            orderObj.direction,
+            orderObj.amount,
+            orderObj.price,
+            orderObj.nextExpiration,
+            orderObj.nonce,
+            callback);
+        }
+      }
+    });
+  };
 
+  waitForOrder(direction, baseCurrency, tradeCurrency, orderNonce, callback) {
+    console.log('Waiting order...');
+    this.getOrders(baseCurrency, tradeCurrency, { areMyOrders: true }, (err, pairs) => {
+      if (err) callback(err);
+      else {
+        let found = pairs[direction].find((elem) => {
+          if (elem.nonce == orderNonce) return true;
+        });
+        if (!found) {
+          callback(undefined);
+        }
+        else {
+          setTimeout(() => {
+            this.waitForOrder(direction, baseCurrency, tradeCurrency, orderNonce, callback);
+          }, 60000);
+        }
+      }
+    });
+  }
+
+  publishOrder(baseAddr, tokenAddr, direction, amount, price, expires, orderNonce, callback) {
+    let tokenGet;
+    let tokenGive;
+    let amountGet;
+    let amountGive;
+
+    if (direction === 'buy') {
+      tokenGet = tokenAddr;
+      tokenGive = baseAddr;
+      amountGet = Math.floor(utility.ethToWei(amount, this.getDivisor(tokenGet)));
+      const amountGetEth = utility.weiToEth(amountGet, this.getDivisor(tokenGet));
+      amountGive = Math.floor(utility.ethToWei(amountGetEth * price, this.getDivisor(tokenGive)));
+    }
+    else if (direction === 'sell') {
+      tokenGet = baseAddr;
+      tokenGive = tokenAddr;
+      amountGive = Math.floor(utility.ethToWei(amount, this.getDivisor(tokenGive)));
+      const amountGiveEth = utility.weiToEth(amountGive, this.getDivisor(tokenGive));
+      amountGet = Math.ceil(utility.ethToWei(amountGiveEth * price, this.getDivisor(tokenGet)));
+    }
+    else {
+      console.log('Invalid order direction');
+      return;
+    }
+    utility.call(
+      this.transactor.web3,
+      this.contractEtherDelta,
+      this.config.contractEtherDeltaAddr,
+      'balanceOf',
+      [tokenGive, this.transactor.address],
+      (err, result) => {
+        if (err) callback(err);
+        else {
+          const balance = result;
+          if (balance.lt(new BigNumber(amountGive))) {
+            callback('You do not have enough funds');
+            return;
+          }
+          else if (!this.config.ordersOnchain) {
+            // offchain order
+            const condensed = utility.pack(
+              [
+                this.config.contractEtherDeltaAddr,
+                tokenGet,
+                amountGet,
+                tokenGive,
+                amountGive,
+                expires,
+                orderNonce,
+              ],
+              [160, 160, 256, 160, 256, 256, 256]);
+            const hash = sha256(new Buffer(condensed, 'hex'));
+            utility.sign(this.transactor.web3, this.transactor.address,
+            hash, this.transactor.privateKey, (errSign, sig) => {
+              if (errSign) callback(errSign);
+              else {
+                // Send order to offchain book:
+                const order = {
+                  contractAddr: this.config.contractEtherDeltaAddr,
+                  tokenGet,
+                  amountGet,
+                  tokenGive,
+                  amountGive,
+                  expires,
+                  nonce: orderNonce,
+                  v: sig.v,
+                  r: sig.r,
+                  s: sig.s,
+                  user: this.transactor.address,
+                };
+                console.log('Sending order to the order book...');
+                utility.postURL(
+                  `${this.config.apiServer}/message`,
+                  { message: JSON.stringify(order) },
+                  (errPost) => {
+                    // There is no body response
+                    if (errPost) callback(errPost);
+                    else {
+                      // Notify when order is complete
+                      callback(undefined, orderNonce);
+                    }
+                });
+              }
+            });
+          }
+          else {
+            // onchain order
+            utility.send(
+              this.web3,
+              this.contractEtherDelta,
+              this.config.contractEtherDeltaAddr,
+              'order',
+              [
+                tokenGet,
+                amountGet,
+                tokenGive,
+                amountGive,
+                expires,
+                orderNonce,
+                { gas: this.config.gasOrder, value: 0 },
+              ],
+              this.transactor.address,
+              this.transactor.privateKey,
+              this.nonce,
+              (errSend, resultSend) => {
+                if (errSend) callback(errSend);
+                else {
+                  this.nonce = resultSend.nonce;
+                  callback(undefined, { txHash: resultSend.txHash });
+                }
+              });
+          }
+        }
+      });
+  };
 
 }
 

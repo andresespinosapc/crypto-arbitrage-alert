@@ -23,7 +23,7 @@ TS.init = function(provider, privateKey)
 TS.waitForTransaction = function(txHash, callback)
 {
   console.log('Waiting for ' + txHash);
-  web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
+  this.web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
     if(err) {clearTimeout(interval); callback(err);}
     else if (receipt && receipt.transactionHash===txHash) {
       console.log("Got TX receipt, checking contract");
