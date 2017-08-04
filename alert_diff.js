@@ -15,8 +15,14 @@ let logger = new winston.Logger({
     new (winston.transports.File)({
       name: 'error-file',
       handleExceptions: true,
-      filename: 'alert_diff.log',
+      filename: 'alert_diff_errors.log',
       level: 'error'
+    }),
+    new (winston.transports.File)({
+      name: 'info-file',
+      handleExceptions: false,
+      filename: 'alert_diff_info.log',
+      level: 'info'
     }),
   ]
 });
@@ -202,7 +208,7 @@ let mainLoop = (pool, bot, userSettings, myWebsites) => {
               }
               else if (market2 == 'etherdelta') {
                 if (markets[market1][coin].last / markets[market2][coin].ask >= 1.05) {
-                  let message = `URGETE: Esta mas barato ${coin} en etherdelta que en ${market1}`
+                  let message = `URGENTE: Esta mas barato ${coin} en etherdelta que en ${market1}`
                   bot.sendMessage(userSettings.chatId, message);
                 }
               }

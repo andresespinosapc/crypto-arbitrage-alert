@@ -27,12 +27,17 @@ let myWebsites = {
   liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
 }
 
-myWebsites.etherdelta.waitForOrder('sell', 'ETH', 'ADX', '607495226', (err) => {
+TS.sendToken('ADX', '0xe4573b8bab07aaedce70605e578110979df16442', 461.31, {}, (err, hash) => {
   if (err) console.log(err);
-  else {
-    sendTelegramMessage('Termino tu orden');
-  }
+    console.log('yeah', hash);
 });
+
+// myWebsites.etherdelta.waitForOrder('sell', 'ETH', 'EOS', '2126580151', (err) => {
+//   if (err) console.log(err);
+//   else {
+//     sendTelegramMessage('Termino tu orden');
+//   }
+// });
 
 // myWebsites.etherdelta.order('sell', 464.88, 0.0007, 'ETH', 'ADX', 10, false, (err, orderNonce) => {
 //   if (err) console.log(err);
@@ -47,14 +52,14 @@ myWebsites.etherdelta.waitForOrder('sell', 'ETH', 'ADX', '607495226', (err) => {
 //   }
 // });
 
-// myWebsites.etherdelta.getOrders('ETH', 'ADX', { areMyOrders: true }, (err, data) => {
+// myWebsites.etherdelta.getOrders('ETH', 'EOS', { areMyOrders: true }, (err, data) => {
 //   if (err) console.log(err);
 //   else {
 //     console.log(data);
 //   }
 // });
 
-// myWebsites.etherdelta.deposit('ADX', , (err) => {
+// myWebsites.etherdelta.deposit('EOS', 59.025, (err) => {
 //   if (err) console.log(err);
 //   else {
 //     console.log('yeah');
