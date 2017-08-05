@@ -21,7 +21,7 @@ let telegramChatIds = [
 ]
 let userSettings = {};
 telegramChatIds.forEach((chatId) => {
-  userSettings[chatId] = JSON.parse(fs.readFileSync(chatId + '.json', 'utf8'));
+  userSettings[chatId] = JSON.parse(fs.readFileSync(`user_settings/${chatId}.json`, 'utf8'));
 });
 
 let pool;
@@ -119,7 +119,7 @@ bot.onText(/toggle ethdelta cheap/, (msg, match) => {
     userSettings[msg.chat.id].etherdeltaCheapAlert = !userSettings[msg.chat.id].etherdeltaCheapAlert;
     let currentState = (userSettings[msg.chat.id].etherdeltaCheapAlert) ? 'ON' : 'OFF';
     bot.sendMessage(msg.chat.id, 'Ok, now it is ' + currentState);
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
@@ -128,7 +128,7 @@ bot.onText(/toggle ethdelta diff/, (msg, match) => {
     userSettings[msg.chat.id].etherdeltaDiffAlert = !userSettings[msg.chat.id].etherdeltaDiffAlert;
     let currentState = (userSettings[msg.chat.id].etherdeltaDiffAlert) ? 'ON' : 'OFF';
     bot.sendMessage(msg.chat.id, 'Ok, now it is ' + currentState);
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
@@ -137,7 +137,7 @@ bot.onText(/toggle arbitrage/, (msg, match) => {
     userSettings[msg.chat.id].arbitrageAlert = !userSettings[msg.chat.id].arbitrageAlert;
     let currentState = (userSettings[msg.chat.id].arbitrageAlert) ? 'ON' : 'OFF';
     bot.sendMessage(msg.chat.id, 'Ok, now it is ' + currentState);
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
@@ -146,7 +146,7 @@ bot.onText(/add coin (.+)/, (msg, match) => {
     const arg = match[1];
     userSettings[msg.chat.id].coins.push(arg)
     bot.sendMessage(msg.chat.id, 'Coin added. ' + JSON.stringify(userSettings[msg.chat.id].coins));
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
@@ -161,7 +161,7 @@ bot.onText(/remove coin (.+)/, (msg, match) => {
     else {
       bot.sendMessage(msg.chat.id, 'Mmm not in the list');
     }
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
@@ -176,7 +176,7 @@ bot.onText(/remove blacklist (.+)/, (msg, match) => {
     else {
       bot.sendMessage(msg.chat.id, 'Mmm not in the list');
     }
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
@@ -185,7 +185,7 @@ bot.onText(/blacklist (.+)/, (msg, match) => {
     const arg = match[1];
     userSettings[msg.chat.id].blacklist.push(arg);
     bot.sendMessage(msg.chat.id, 'Ok, added. ' + JSON.stringify(userSettings[msg.chat.id].blacklist));
-    fs.writeFile(msg.chat.id + '.json', JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
