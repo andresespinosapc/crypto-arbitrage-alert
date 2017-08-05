@@ -36,11 +36,11 @@ class Bittrex extends Website {
   }
 
   getWithdrawalFee(currency, amount, callback) {
-    request('https://bittrex.com/api/v1.1/public/getcurrencies' (err, res) => {
+    request('https://bittrex.com/api/v1.1/public/getcurrencies', (err, res) => {
       if (err) callback(err);
       else {
         let currencies = res.result;
-        let currencyInfo = currencies.find((elem) => return elem.Currency == currency);
+        let currencyInfo = currencies.find(elem => elem.Currency == currency);
         if (currencyInfo) {
           callback(undefined, currencyInfo.TxFee);
         }
