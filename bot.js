@@ -25,12 +25,24 @@ let userSettings = {
   etherdeltaCheapAlert: true
 };
 
-let pool = mysql.createPool({
-  host: 'localhost',
-  user: 'andres',
-  password: 'wena',
-  database: 'crypto'
-});
+let pool;
+if (process.env.IS_DG) {
+  pool = mysql.createPool({
+    host: 'localhost',
+    user: 'andres',
+    password: '3661071a',
+    database: 'crypto'
+  });
+}
+else {
+  pool = mysql.createPool({
+    host: 'localhost',
+    user: 'andres',
+    password: 'wena',
+    database: 'crypto'
+  });
+}
+
 
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {polling: true});

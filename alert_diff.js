@@ -4,13 +4,17 @@ const utils = require('./utils.js');
 const winston = require('winston');
 
 
+let consoleLevel;
+if (process.env.IS_DG) consoleLevel = 'error';
+else consoleLevel = 'debug';
+
 let logger = new winston.Logger({
   exitOnError: false,
   transports: [
     new (winston.transports.Console)({
       handleExceptions: true,
       humanReadableUnhandledException: true,
-      level: 'debug'
+      level: consoleLevel
     }),
     new (winston.transports.File)({
       name: 'error-file',
