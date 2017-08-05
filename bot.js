@@ -16,8 +16,8 @@ let myWebsites = {
 
 const TELEGRAM_BOT_TOKEN = '423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU';
 let telegramChatIds = [
-  '8834684',
-  '139887252'
+  8834684,
+  139887252
 ]
 let userSettings = {};
 userSettings['global'] = JSON.parse(fs.readFileSync('user_settings/global.json', 'utf8'));
