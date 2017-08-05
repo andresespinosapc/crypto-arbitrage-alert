@@ -211,26 +211,23 @@ TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, amount, 
     if (err) callback(err);
     else {
       console.log('Withdrawal successful');
-      let transferredAmount;
-      try {
-        transferredAmount = amount - await initialWebsite.getWithdrawalFee(currency, amount);
-        transferredAmount = transferredAmount / 1.0001;
-      }
-      catch (err) {
-        callback(err);
-        return;
-      }
-
-      this.waitForBalance(currency, transferredAmount, (err) => {
+      initialWebsite.getWithdrawalFee(currency, amount, (err, fee) => {
         if (err) callback(err);
         else {
-          console.log('Your money is now in your account');
-          // Get current balance from the final website
-          finalWebsite.deposit(currency, transferredAmount, (err) => {
+          let transferredAmount = (amount - fee) / 1.0001;
+
+          this.waitForBalance(currency, transferredAmount, (err) => {
             if (err) callback(err);
             else {
-              console.log('Deposit successful');
-              callback(undefined);
+              console.log('Your money is now in your account');
+              // Get current balance from the final website
+              finalWebsite.deposit(currency, transferredAmount, (err) => {
+                if (err) callback(err);
+                else {
+                  console.log('Deposit successful');
+                  callback(undefined);
+                }
+              });
             }
           });
         }
