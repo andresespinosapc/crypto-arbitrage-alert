@@ -85,7 +85,9 @@ bot.onText(/deposit (.+) (.+) on (.+)/, (msg, match) => {
     let website = match[3];
 
     myWebsites[website].deposit(token, amount, (err) => {
-      if (err) bot.sendMessage(msg.chat.id, err);
+      if (err) {
+        bot.sendMessage(msg.chat.id, err);
+      }
       else {
         bot.sendMessage(msg.chat.id, 'Deposit successful');
       }

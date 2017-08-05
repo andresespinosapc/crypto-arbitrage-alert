@@ -35,6 +35,8 @@ class Bittrex extends Website {
     });
   }
 
+  getTicker() {}
+
   getDepositAddress(currency, callback) {
     this.request('https://bittrex.com/api/v1.1/account/getdepositaddress', {
       currency: currency

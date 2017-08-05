@@ -71,12 +71,12 @@ let myWebsites = {
 //   else {
 //     console.log('Orders gotten');
 //     console.log(data.sell[0].order);
-//     myWebsites.etherdelta.trade('buy', data.sell[0].order, 0.001, (err, hash) => {
-//       if (err) console.log(err);
-//       else {
-//         console.log('Transaction hash: ' + hash);
-//       }
-//     });
+//     // myWebsites.etherdelta.trade('buy', data.sell[0].order, 0.001, (err, hash) => {
+//     //   if (err) console.log(err);
+//     //   else {
+//     //     console.log('Transaction hash: ' + hash);
+//     //   }
+//     // });
 //   }
 // });
 
@@ -107,7 +107,7 @@ let myWebsites = {
 //   else console.log('Withdrawal successfull');
 // });
 
-// myWebsites.bittrex.deposit('ETH', 0.476, (err) => {
-//   if (err) console.log(err);
-//   else console.log('Deposit submitted');
-// });
+myWebsites.bittrex.deposit('PAY', 73, (err) => {
+  if (err) console.log(err);
+  else console.log('Deposit submitted');
+});

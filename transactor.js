@@ -115,42 +115,39 @@ TS.getBalance = function(identifier, callback)
   }
 }
 
-TS.transact = function(to, value, options, callback){
-  if (callback === undefined) callback = options;
-  var func = function(parent, nonce)
-  {
+TS.sendEth = (to, amount, options, callback) => {
+  let func = function(web3In, privateKey, nonce) {
     gasPrice = "gasPrice" in options ?
-    '0x'+new BigNumber(parent.web3.toWei(options.gasPrice, 'gwei')).toString(16):
+    '0x'+new BigNumber(web3.toWei(options.gasPrice, 'gwei')).toString(16):
     defaultGasPrice;
     var params = {
       nonce:nonce,
       gasPrice:gasPrice,
       gasLimit:"gasLimit" in options ? options.gasLimit:defaultGasLimit,
       to:to,
-      value: '0x'+new BigNumber(parent.web3.toWei(value, 'ether')).toString(16),
+      amount: '0x'+new BigNumber(web3.toWei(amount, 'ether')).toString(16),
       data:"data" in options ? options.data:''
     };
     let tx = new Tx(params);
     console.log(params);
-    tx.sign(parent.privateKey);
+    tx.sign(privateKey);
     let serializedTx = tx.serialize();
-    parent.web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'),
+    web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'),
     (err,txHash)=>{
       if(err) callback(err);
       else {callback(undefined, txHash);}
     });
   }
-  if(options.nonce) func(this, options.nonce);
-  else{
-    this.web3.eth.getTransactionCount(this.address, (err, value)=>{
-      if(err) callback(err);
-      else func(this, value);
+  if (options.nonce) func(this.web3, this.privateKey, options.nonce);
+  else {
+    this.web3.eth.getTransactionCount(this.address, (err, result)=> {
+      if (err) callback(err);
+      else func(this.web3, this.privateKey, result);
     });
   }
 }
 
-TS.sendToken = function(tokenIdentifier, to, amount, options, callback)
-{
+TS.sendToken = function(tokenIdentifier, to, amount, options, callback) {
   options.gasPrice = options.gasPrice || defaultGasPrice;
   options.gasLimit = options.gasLimit || defaultGasLimit;
   options.nonce = 'nonce' in options ? value.nonce:null;
@@ -185,6 +182,16 @@ TS.sendToken = function(tokenIdentifier, to, amount, options, callback)
       if(err) callback(err);
       else callback(undefined, txHash);
     })
+  }
+}
+
+TS.transact = function(tokenIdentifier, to, amount, options, callback) {
+  let token = utils.getToken(tokenIdentifier);
+  if (token.name == 'ETH') {
+    this.sendEth(to, amount, options, callback);
+  }
+  else {
+    this.sendToken(token.addr, to, amount, options, callback);
   }
 }
 

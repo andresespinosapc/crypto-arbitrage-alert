@@ -3,11 +3,11 @@ class Website {
     this.transactor = transactor;
   }
 
-  deposit(currency, value, callback) {
+  deposit(currency, amount, callback) {
     this.getDepositAddress(currency, (err, depositAddress) => {
       if (err) callback(err);
       else {
-        this.transactor.transact(depositAddress, value, {}, (err, hash) => {
+        this.transactor.transact(currency, depositAddress, amount, {}, (err, hash) => {
           if (err) callback(err);
           else {
             console.log('Transaction hash:', hash);
