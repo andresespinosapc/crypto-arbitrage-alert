@@ -35,6 +35,24 @@ class Bittrex extends Website {
     });
   }
 
+  async getWithdrawalFee(currency, amount) {
+    return new Promise((resolve, reject) => {
+      request('https://bittrex.com/api/v1.1/public/getcurrencies' (err, res) => {
+        if (err) reject(err);
+        else {
+          let currencies = res.result;
+          let currencyInfo = currencies.find((elem) => return elem.Currency == currency);
+          if (currencyInfo) {
+            resolve(currencyInfo.TxFee);
+          }
+          else {
+            reject('Invalid currency');
+          }
+        }
+      });
+    });
+  }
+
   getTicker() {}
 
   getDepositAddress(currency, callback) {
