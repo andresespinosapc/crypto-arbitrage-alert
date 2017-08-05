@@ -20,6 +20,7 @@ let telegramChatIds = [
   '139887252'
 ]
 let userSettings = {};
+userSettings['global'] = JSON.parse(fs.readFileSync('user_settings/global.json', 'utf8'));
 telegramChatIds.forEach((chatId) => {
   userSettings[chatId] = JSON.parse(fs.readFileSync(`user_settings/${chatId}.json`, 'utf8'));
 });
@@ -143,25 +144,25 @@ bot.onText(/toggle arbitrage/, (msg, match) => {
 
 bot.onText(/add coin (.+)/, (msg, match) => {
   if (telegramChatIds.indexOf(msg.chat.id) != -1) {
-    const arg = match[1];
-    userSettings[msg.chat.id].coins.push(arg)
-    bot.sendMessage(msg.chat.id, 'Coin added. ' + JSON.stringify(userSettings[msg.chat.id].coins));
-    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
+    const coinName = match[1];
+    userSettings['global'].coins.push(coinName);
+    bot.sendMessage(msg.chat.id, `Coin ${coinName} added. ${JSON.stringify(userSettings[msg.chat.id].coins)}`);
+    fs.writeFile('user_settings/global.json', JSON.stringify(userSettings[msg.chat.id]));
   }
 });
 
 bot.onText(/remove coin (.+)/, (msg, match) => {
   if (telegramChatIds.indexOf(msg.chat.id) != -1) {
-    const arg = match[1];
-    let index = userSettings[msg.chat.id].coins.indexOf(arg);
+    const coinName = match[1];
+    let index = userSettings['global'].coins.indexOf(coinName);
     if (index > -1) {
-      userSettings[msg.chat.id].blacklist.splice(index, 1);
-      bot.sendMessage(msg.chat.id, 'Coin removed. ' + JSON.stringify(userSettings[msg.chat.id].coins));
+      userSettings['global'].blacklist.splice(index, 1);
+      bot.sendMessage(msg.chat.id, `Coin ${coinName} removed. ${JSON.stringify(userSettings['global'].coins)}`);
     }
     else {
       bot.sendMessage(msg.chat.id, 'Mmm not in the list');
     }
-    fs.writeFile(`user_settings/${msg.chat.id}.json`, JSON.stringify(userSettings[msg.chat.id]));
+    fs.writeFile('user_settings/global.json', JSON.stringify(userSettings['global']));
   }
 });
 
@@ -191,7 +192,7 @@ bot.onText(/blacklist (.+)/, (msg, match) => {
 
 bot.onText(/show coins/, (msg, match) => {
   if (telegramChatIds.indexOf(msg.chat.id) != -1) {
-    bot.sendMessage(msg.chat.id, JSON.stringify(userSettings[msg.chat.id].coins));
+    bot.sendMessage(msg.chat.id, JSON.stringify(userSettings['global'].coins));
   }
 });
 
@@ -207,4 +208,4 @@ let allCoins = [
   'FUCK', 'ADX', 'BAT', 'OMG'
 ];
 
-AlertDiff.start(pool, bot, userSettings[msg.chat.id], myWebsites);
+AlertDiff.start(pool, bot, userSettings, myWebsites);

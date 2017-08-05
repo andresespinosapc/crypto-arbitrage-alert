@@ -31,6 +31,13 @@ let logger = new winston.Logger({
   ]
 });
 
+let sendBasedOnSetting = (setting, message, bot, userSettings) => {
+  Object.keys(userSettings).forEach((key) => {
+    if (userSettings[key][setting]) {
+      bot.sendMessage(key, message);
+    }
+  });
+}
 
 let mainLoop = (pool, bot, userSettings, myWebsites) => {
   try {
@@ -55,17 +62,15 @@ let mainLoop = (pool, bot, userSettings, myWebsites) => {
           bid: bid,
           dailyVolume: parseFloat(value.baseVolume)
         }
-        if (userSettings.etherdeltaDiffAlert) {
-          let diff = bid / ask;
-          logger.info('Found a difference of ' + diff + ' on ' + coinName);
-          if (diff >= 1.1) {
-            let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
-            bot.sendMessage(userSettings.chatId, message);
-          }
+        let diff = bid / ask;
+        logger.info('Found a difference of ' + diff + ' on ' + coinName);
+        if (diff >= 1.1) {
+          let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
+          sendBasedOnSetting('etherdeltaDiffAlert', message, bot, userSettings);
         }
       });
 
-      userSettings.coins.forEach(async (coin) => {
+      userSettings['global'].coins.forEach(async (coin) => {
         let bittrexPromise = new Promise((resolve) => {
           let options = {
             uri: 'https://bittrex.com/api/v1.1/public/getticker',
@@ -195,26 +200,24 @@ let mainLoop = (pool, bot, userSettings, myWebsites) => {
           try {
             let diff = Math.abs(1 - markets[market1][coin].ask / markets[market2][coin].ask);
             console.log(market1 + '-' + market2 + ': ' + diff);
-            if (userSettings.arbitrageAlert) {
-              // Notify if there ir a difference of 10% or more between websites
-              if (diff >= 0.1 && userSettings.blacklist.indexOf(coin) == -1) {
-                let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
-                bot.sendMessage(userSettings.chatId, message);
+
+            // Notify if there ir a difference of 10% or more between websites
+            if (diff >= 0.1 && userSettings.blacklist.indexOf(coin) == -1) {
+              let message = `Hay una diferencia de ${diff} en ${coin} entre ${market1} y ${market2}`;
+              sendBasedOnSetting('arbitrageAlert', message, bot, userSettings);
+            }
+
+            // Notify if etherdelta is cheaper than other website
+            if (market1 == 'etherdelta') {
+              if (markets[market2][coin].last / markets[market1][coin].ask >= 1.05) {
+                let message = `URGENTE: Esta mas barato ${coin} en etherdelta que en ${market2}`
+                sendBasedOnSetting('etherdeltaCheapAlert', message, bot, userSettings);
               }
             }
-            if (userSettings.etherdeltaCheapAlert) {
-              // Notify if etherdelta is cheaper than other website
-              if (market1 == 'etherdelta') {
-                if (markets[market2][coin].last / markets[market1][coin].ask >= 1.05) {
-                  let message = `URGENTE: Esta mas barato ${coin} en etherdelta que en ${market2}`
-                  bot.sendMessage(userSettings.chatId, message);
-                }
-              }
-              else if (market2 == 'etherdelta') {
-                if (markets[market1][coin].last / markets[market2][coin].ask >= 1.05) {
-                  let message = `URGENTE: Esta mas barato ${coin} en etherdelta que en ${market1}`
-                  bot.sendMessage(userSettings.chatId, message);
-                }
+            else if (market2 == 'etherdelta') {
+              if (markets[market1][coin].last / markets[market2][coin].ask >= 1.05) {
+                let message = `URGENTE: Esta mas barato ${coin} en etherdelta que en ${market1}`
+                sendBasedOnSetting('etherdeltaCheapAlert', message, bot, userSettings);
               }
             }
           }
