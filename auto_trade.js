@@ -66,19 +66,26 @@ let myWebsites = {
 //   }
 // });
 
-// myWebsites.etherdelta.getOrders('ETH', 'EOS', { areMyOrders: true }, (err, data) => {
+// myWebsites.etherdelta.getOrders('ETH', 'VERI', { areMyOrders: false }, (err, data) => {
 //   if (err) console.log(err);
 //   else {
-//     console.log(data);
+//     console.log('Orders gotten');
+//     console.log(data.sell[0].order);
+//     myWebsites.etherdelta.trade('buy', data.sell[0].order, 0.001, (err, hash) => {
+//       if (err) console.log(err);
+//       else {
+//         console.log('Transaction hash: ' + hash);
+//       }
+//     });
 //   }
 // });
 
-myWebsites.etherdelta.deposit('ETH', 0.52, (err) => {
-  if (err) console.log(err);
-  else {
-    console.log('yeah');
-  }
-});
+// myWebsites.etherdelta.deposit('ETH', 0.52, (err) => {
+//   if (err) console.log(err);
+//   else {
+//     console.log('yeah');
+//   }
+// });
 
 // myWebsites.bittrex.withdraw('FUN', 5364.05125556, (err) => {
 //   if (err) console.log(err);

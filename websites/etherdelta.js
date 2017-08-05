@@ -15,6 +15,7 @@ class EtherDelta extends Website{
   constructor(transactor) {
     super(transactor);
 
+    this.minOrderSize = 0.01;
     this.config = config;
     this.config.etherDeltaContracts = this.config.contractEtherDeltaAddrs.map(
       (elem)=>{return elem.addr;});
@@ -292,14 +293,15 @@ class EtherDelta extends Website{
           });
         }
         else {
-          pairs = utils.ordersByPair(orders.orders, baseToken.addr, tradeToken.addr, options.limit);
+          pairs = utils.ordersByPair(orders, baseToken.addr, tradeToken.addr, options.limit);
 
           callback(undefined, {
             buy: pairs.buy.map((elem)=>{
               return {
-                price:parseFloat(elem.price),
-                amount:parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
-                baseAmount:parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals)
+                price: parseFloat(elem.price),
+                amount: parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
+                baseAmount: parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
+                order: elem.order
               }
             }),
             sell: pairs.sell.map((elem)=>{
@@ -307,7 +309,8 @@ class EtherDelta extends Website{
                 price: parseFloat(elem.price),
                 amount: parseInt(elem.availableVolume) / Math.pow(10, tradeToken.decimals),
                 amountFilled: parseInt(elem.availableVolumeBase) / Math.pow(10, baseToken.decimals),
-                nonce: elem.order.nonce
+                nonce: elem.order.nonce,
+                order: elem.order
               }
             })
           });
@@ -416,8 +419,7 @@ class EtherDelta extends Website{
       this.config.contractEtherDeltaAddr,
       'balanceOf',
       [order.tokenGet, this.transactor.address],
-      (err, result) => {
-        const availableBalance = result;
+      (err, availableBalance) => {
         utility.call(
           this.transactor.web3,
           this.contractEtherDelta,
@@ -435,75 +437,86 @@ class EtherDelta extends Website{
             order.r,
             order.s,
           ],
-          (errAvailableVolume, resultAvailableVolume) => {
-            const availableVolume = resultAvailableVolume;
-            if (amount.gt(availableBalance.divToInt(1.0031))) {
-              // balance adjusted for fees (0.0001 to avoid rounding error)
-              amount = availableBalance.divToInt(1.0031);
+          (errAvailableVolume, availableVolume) => {
+            if (errAvailableVolume) callback(errAvailableVolume);
+            else {
+              if (amount.gt(availableBalance.divToInt(1.0031))) {
+                // balance adjusted for fees (0.0001 to avoid rounding error)
+                amount = availableBalance.divToInt(1.0031);
+              }
+              if (amount.gt(availableVolume)) amount = availableVolume;
+              let v = Number(order.v);
+              let r = order.r;
+              let s = order.s;
+              if (!(v && r && s)) {
+                v = 0;
+                r = '0x0';
+                s = '0x0';
+              }
+              utility.call(
+                this.transactor.web3,
+                this.contractEtherDelta,
+                this.config.contractEtherDeltaAddr,
+                'testTrade',
+                [
+                  order.tokenGet,
+                  Number(order.amountGet),
+                  order.tokenGive,
+                  Number(order.amountGive),
+                  Number(order.expires),
+                  Number(order.nonce),
+                  order.user,
+                  v,
+                  r,
+                  s,
+                  amount.toNumber(),
+                  this.transactor.address,
+                ],
+                (errTestTrade, resultTestTrade) => {
+                  if (errTestTrade) callback(errTestTrade);
+                  else {
+                    console.log(resultTestTrade);
+                    console.log(order);
+                    if (resultTestTrade && amount > 0) {
+                      utility.send(
+                        this.transactor.web3,
+                        this.contractEtherDelta,
+                        this.config.contractEtherDeltaAddr,
+                        'trade',
+                        [
+                          order.tokenGet,
+                          Number(order.amountGet),
+                          order.tokenGive,
+                          Number(order.amountGive),
+                          Number(order.expires),
+                          Number(order.nonce),
+                          order.user,
+                          v,
+                          r,
+                          s,
+                          amount,
+                          { gas: this.config.gasTrade, value: 0 },
+                        ],
+                        this.transactor.address,
+                        this.transactor.privateKey,
+                        this.nonce,
+                        (errSend, resultSend) => {
+                          if (errSend) callback(errSend);
+                          else {
+                            console.log(resultSend);
+                            this.nonce = resultSend.nonce;
+                            callback(undefined, resultSend.txHash);
+                          }
+                        });
+                    } else if (utility.weiToEth(availableVolume,
+                        this.getDivisor(this.selectedToken)) < this.minOrderSize) {
+                      callback('Order already traded');
+                    } else {
+                      callback('Not enough funds');
+                    }
+                  }
+                });
             }
-            if (amount.gt(availableVolume)) amount = availableVolume;
-            let v = Number(order.v);
-            let r = order.r;
-            let s = order.s;
-            if (!(v && r && s)) {
-              v = 0;
-              r = '0x0';
-              s = '0x0';
-            }
-            utility.call(
-              this.transactor.web3,
-              this.contractEtherDelta,
-              this.config.contractEtherDeltaAddr,
-              'testTrade',
-              [
-                order.tokenGet,
-                Number(order.amountGet),
-                order.tokenGive,
-                Number(order.amountGive),
-                Number(order.expires),
-                Number(order.nonce),
-                order.user,
-                v,
-                r,
-                s,
-                amount,
-                this.transactor.address,
-              ],
-              (errTestTrade, resultTestTrade) => {
-                if (resultTestTrade && amount > 0) {
-                  utility.send(
-                    this.transactor.web3,
-                    this.contractEtherDelta,
-                    this.config.contractEtherDeltaAddr,
-                    'trade',
-                    [
-                      order.tokenGet,
-                      Number(order.amountGet),
-                      order.tokenGive,
-                      Number(order.amountGive),
-                      Number(order.expires),
-                      Number(order.nonce),
-                      order.user,
-                      v,
-                      r,
-                      s,
-                      amount,
-                      { gas: this.config.gasTrade, value: 0 },
-                    ],
-                    this.transactor.address,
-                    this.transactor.privateKey,
-                    this.nonce,
-                    (errSend, resultSend) => {
-                      this.nonce = resultSend.nonce;
-                      callback(undefined, resultSend.txHash);
-                    });
-                } else if (utility.weiToEth(availableVolume,
-                this.getDivisor(this.selectedToken)) < this.minOrderSize) {
-                  callback('Order already traded');
-                } else {
-                  callback('Not enough funds');
-                }
-              });
           });
       });
   };

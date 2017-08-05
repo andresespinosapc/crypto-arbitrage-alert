@@ -48,7 +48,7 @@ else {
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {polling: true});
 
 bot.onText(/move (.+) (.+) from (.+) to (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (msg.chat.id == 8834684) {
     let amount = parseFloat(match[1]);
     let token = match[2];
     let initialWebsite = match[3];
@@ -64,7 +64,7 @@ bot.onText(/move (.+) (.+) from (.+) to (.+)/, (msg, match) => {
 });
 
 bot.onText(/withdraw (.+) (.+) from (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (msg.chat.id == 8834684) {
     let amount = parseFloat(match[1]);
     let token = match[2];
     let website = match[3];
@@ -79,7 +79,7 @@ bot.onText(/withdraw (.+) (.+) from (.+)/, (msg, match) => {
 });
 
 bot.onText(/deposit (.+) (.+) on (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (msg.chat.id == 8834684) {
     let amount = parseFloat(match[1]);
     let token = match[2];
     let website = match[3];
@@ -94,7 +94,7 @@ bot.onText(/deposit (.+) (.+) on (.+)/, (msg, match) => {
 });
 
 bot.onText(/order (buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (msg.chat.id == 8834684) {
     let direction = match[1];
     let amount = parseFloat(match[2]);
     let token = match[3];
@@ -103,11 +103,34 @@ bot.onText(/order (buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
     myWebsites.etherdelta.order(direction, amount, price, 'ETH', token, 10000, false, (err, orderNonce) => {
       if (err) bot.sendMessage(msg.chat.id, err);
       else {
-        console.log('Order placed with nonce: ' + orderNonce);
+        bot.sendMessage(msg.chat.id, 'Order placed with nonce: ' + orderNonce);
         myWebsites.etherdelta.waitForOrder(direction, 'ETH', token, orderNonce, (err) => {
           if (err) bot.sendMessage(msg.chat.id, err);
           else {
-            bot.sendMessage(msg.chat.id, 'Termino tu orden');
+            bot.sendMessage(msg.chat.id, 'Your order has finished');
+          }
+        });
+      }
+    });
+  }
+});
+
+bot.onText(/(buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
+  if (msg.chat.id == 8834684) {
+    let direction = match[1];
+    let amount = parseFloat(match[2]);
+    let token = match[3];
+    let price = parseFloat(match[4]);
+    let directions = ['buy', 'sell'];
+
+    myWebsites.etherdelta.getOrders('ETH', token, {}, (err, data) => {
+      if (err) bot.sendMessage(msg.chat.id, err);
+      else {
+        myWebsites.etherdelta.trade(direction,
+            data[directions[1-directions.indexOf(direction)]][0].order, amount, (err, hash) => {
+          if (err) bot.sendMessage(msg.chat.id, err);
+          else {
+            bot.sendMessage(msg.chat.id, 'Transaction hash: ' + hash);
           }
         });
       }
