@@ -4,6 +4,25 @@ const fs = require('fs');
 
 function utils() {}
 
+utils.weiToEth = function weiToEth(wei, divisorIn) {
+  const divisor = !divisorIn ? 1000000000000000000 : divisorIn;
+  return (wei / divisor).toFixed(3);
+};
+
+utils.ethToWei = function ethToWei(eth, divisorIn) {
+  const divisor = !divisorIn ? 1000000000000000000 : divisorIn;
+  return parseFloat((eth * divisor).toPrecision(10));
+};
+
+utils.getDivisor = function (tokenIdentifier) {
+  let result = 1000000000000000000;
+  const token = utils.getToken(tokenIdentifier);
+  if (token && token.decimals !== undefined) {
+    result = Math.pow(10, token.decimals); // eslint-disable-line no-restricted-properties
+  }
+  return new BigNumber(result);
+};
+
 utils.amountToarg = function(amount, decimals)
 {
   var bn = new BigNumber(amount).times(Math.pow(10, decimals));

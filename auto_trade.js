@@ -27,6 +27,13 @@ let myWebsites = {
   liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
 }
 
+// TS.getBalance('ETH', (err, balance) => {
+//   if (err) console.log(err);
+//   else {
+//     console.log(balance);
+//   }
+// });
+
 // TS.moveCoin(myWebsites.etherdelta, myWebsites.bittrex, 'ADX', 770, (err) => {
 //   if (err) console.log(err);
 //   else {
@@ -107,7 +114,7 @@ let myWebsites = {
 //   else console.log('Withdrawal successfull');
 // });
 
-myWebsites.bittrex.deposit('PAY', 73, (err) => {
-  if (err) console.log(err);
-  else console.log('Deposit submitted');
-});
+// myWebsites.bittrex.deposit('PAY', 73, (err) => {
+//   if (err) console.log(err);
+//   else console.log('Deposit submitted');
+// });

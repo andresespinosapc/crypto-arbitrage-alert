@@ -1,6 +1,6 @@
-const Tx = require('ethereumjs-tx')
-const Web3 = require('web3')
-const utils = require('./utils')
+const Tx = require('ethereumjs-tx');
+const Web3 = require('web3');
+const utils = require('./utils');
 const BigNumber = require('bignumber.js');
 const ethUtil = require('ethereumjs-util');
 const request = require('request');
@@ -20,8 +20,7 @@ TS.init = function(provider, privateKey)
   this.address = '0x' + ethUtil.privateToAddress(privateKey).toString('hex')
 }
 
-TS.waitForTransaction = function(txHash, callback)
-{
+TS.waitForTransaction = function(txHash, callback) {
   console.log('Waiting for ' + txHash);
   this.web3.eth.getTransactionReceipt(txHash, (err,receipt)=>{
     if(err) {clearTimeout(interval); callback(err);}
@@ -83,24 +82,17 @@ TS.__waitForTransaction = function (txHash, callback) {
   });
 };
 
-TS.ethBalance = function(callback){
+TS.ethBalance = function(callback) {
   this.web3.eth.getBalance(this.address, (err,balance)=>{
     if(err) callback(err);
     else callback(undefined, new BigNumber(this.web3.fromWei(balance, 'ether')));
   });
 }
 
-TS.getBalance = function(identifier, callback)
-{
-  if(callback===undefined){
-    callback = identifier;
-    identifier = ethAddress;
-  }
-  console.log(callback)
-  console.log(identifier)
-  if(identifier===ethAddress || identifier==='ETH') this.ethBalance(callback);
-  else{
-    let token = utils.getToken(identifier)
+TS.getBalance = function(tokenIdentifier, callback) {
+  let token = utils.getToken(tokenIdentifier);
+  if (token.name == 'ETH') this.ethBalance(callback);
+  else {
     let abi = utils.getAbi(token.addr)
     let contract = this.web3.eth.contract(abi)
     let ci = contract.at(token.addr)
@@ -108,14 +100,33 @@ TS.getBalance = function(identifier, callback)
     let funcName = 'balanceOf'
     let func = ci[funcName]
     let data = func.getData(this.address)
-    this.web3.eth.call({to:token.addr, data:data}, (err,balance)=>{
-      if(err) callback(err);
-      else callback(undefined, utils.argToAmount(balance, token.decimals));
+    this.web3.eth.call({ to: token.addr, data: data }, (err, balance) => {
+      if (err) callback(err);
+      //else callback(undefined, utils.argToAmount(balance, token.decimals));
+      else callback(undefined, balance);
     });
   }
 }
 
-TS.sendEth = (to, amount, options, callback) => {
+TS.waitForBalance = function(tokenIdentifier, amount, callback) {
+  let token = utils.getToken(tokenIdentifier);
+  let amount = new BigNumber(Number(utility.ethToWei(amount, utils.getDivisor(token.addr))));
+  this.getBalance(tokenIdentifier, (err, balance) => {
+    if (err) callback(err);
+    else {
+      if (amount.lte(balance)) {
+        callback(undefined);
+      }
+      else {
+        setTimeout(() => {
+          this.waitForBalance(tokenIdentifier, amount, callback);
+        }, 2000);
+      }
+    }
+  });
+}
+
+TS.sendEth = function (to, amount, options, callback) {
   let func = function(web3In, privateKey, nonce) {
     gasPrice = "gasPrice" in options ?
     '0x'+new BigNumber(web3.toWei(options.gasPrice, 'gwei')).toString(16):
@@ -195,17 +206,24 @@ TS.transact = function(tokenIdentifier, to, amount, options, callback) {
   }
 }
 
-TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, callback) {
-  initialWebsite.withdraw(currency, value, (err) => {
+TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, amount, callback) {
+  initialWebsite.withdraw(currency, amount, (err) => {
     if (err) callback(err);
     else {
       console.log('Withdrawal successful');
-      // Get current balance from the final website
-      finalWebsite.deposit(currency, value, (err) => {
+      let tranferredAmount = amount / 1.0031;
+      this.waitForBalance(currency, tranferredAmount, (err) => {
         if (err) callback(err);
         else {
-          console.log('Deposit successful');
-          callback(undefined);
+          console.log('Your money is now in your account');
+          // Get current balance from the final website
+          finalWebsite.deposit(currency, tranferredAmount, (err) => {
+            if (err) callback(err);
+            else {
+              console.log('Deposit successful');
+              callback(undefined);
+            }
+          });
         }
       });
     }

@@ -42,19 +42,10 @@ class EtherDelta extends Website{
     this.eventsCache = {};
   }
 
-  getDivisor(tokenOrAddress) {
-    let result = 1000000000000000000;
-    const token = utils.getToken(tokenOrAddress);
-    if (token && token.decimals !== undefined) {
-      result = Math.pow(10, token.decimals); // eslint-disable-line no-restricted-properties
-    }
-    return new BigNumber(result);
-  };
-
   deposit(currency, value, callback) {
     const token = utils.getToken(currency);
     const tokenAddr = token.addr;
-    let amount = new BigNumber(Number(utility.ethToWei(value, this.getDivisor(tokenAddr))));
+    let amount = new BigNumber(Number(utility.ethToWei(value, utils.getDivisor(tokenAddr))));
     if (amount.lte(0)) {
       callback('Invalid deposit amount');
       return;
@@ -63,8 +54,6 @@ class EtherDelta extends Website{
       utility.getBalance(this.transactor.web3, this.transactor.address, (err, balance) => {
         if (err) callback(err);
         else {
-          console.log(amount);
-          console.log(balance);
           if (amount.gt(balance) && amount.lt(balance.times(new BigNumber(1.1)))) amount = balance;
           if (amount.lte(balance)) {
             utility.send(
@@ -191,7 +180,7 @@ class EtherDelta extends Website{
   withdraw(currency, value, callback) {
     const token = utils.getToken(currency);
     const tokenAddr = token.addr;
-    let amount = new BigNumber(Number(utility.ethToWei(value, this.getDivisor(tokenAddr))));
+    let amount = new BigNumber(Number(utility.ethToWei(value, utils.getDivisor(tokenAddr))));
     if (amount.lte(0)) {
       calback('You must specify a valid amount to withdraw');
       return;
@@ -403,13 +392,13 @@ class EtherDelta extends Website{
     let amount;
     if (type === 'sell') {
       // if I'm selling a bid, the buyer is getting the token
-      amount = new BigNumber(utility.ethToWei(inputAmount, this.getDivisor(order.tokenGet)));
+      amount = new BigNumber(utility.ethToWei(inputAmount, utils.getDivisor(order.tokenGet)));
     } else if (type === 'buy') {
       // if I'm buying an offer, the seller is getting
       // the base and giving the token, so must convert to get terms
       amount = new BigNumber(utility.ethToWei(
         inputAmount * (Number(order.amountGet) / Number(order.amountGive)),
-        this.getDivisor(order.tokenGive)));
+        utils.getDivisor(order.tokenGive)));
     } else {
       return;
     }
@@ -509,7 +498,7 @@ class EtherDelta extends Website{
                           }
                         });
                     } else if (utility.weiToEth(availableVolume,
-                        this.getDivisor(this.selectedToken)) < this.minOrderSize) {
+                        utils.getDivisor(this.selectedToken)) < this.minOrderSize) {
                       callback('Order already traded');
                     } else {
                       callback('Not enough funds');
@@ -583,16 +572,16 @@ class EtherDelta extends Website{
     if (direction === 'buy') {
       tokenGet = tokenAddr;
       tokenGive = baseAddr;
-      amountGet = Math.floor(utility.ethToWei(amount, this.getDivisor(tokenGet)));
-      const amountGetEth = utility.weiToEth(amountGet, this.getDivisor(tokenGet));
-      amountGive = Math.floor(utility.ethToWei(amountGetEth * price, this.getDivisor(tokenGive)));
+      amountGet = Math.floor(utility.ethToWei(amount, utils.getDivisor(tokenGet)));
+      const amountGetEth = utility.weiToEth(amountGet, utils.getDivisor(tokenGet));
+      amountGive = Math.floor(utility.ethToWei(amountGetEth * price, utils.getDivisor(tokenGive)));
     }
     else if (direction === 'sell') {
       tokenGet = baseAddr;
       tokenGive = tokenAddr;
-      amountGive = Math.floor(utility.ethToWei(amount, this.getDivisor(tokenGive)));
-      const amountGiveEth = utility.weiToEth(amountGive, this.getDivisor(tokenGive));
-      amountGet = Math.ceil(utility.ethToWei(amountGiveEth * price, this.getDivisor(tokenGet)));
+      amountGive = Math.floor(utility.ethToWei(amount, utils.getDivisor(tokenGive)));
+      const amountGiveEth = utility.weiToEth(amountGive, utils.getDivisor(tokenGive));
+      amountGet = Math.ceil(utility.ethToWei(amountGiveEth * price, utils.getDivisor(tokenGet)));
     }
     else {
       console.log('Invalid order direction');
