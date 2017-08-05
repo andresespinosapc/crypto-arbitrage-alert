@@ -34,12 +34,12 @@ let myWebsites = {
 //   }
 // });
 
-myWebsites.bittrex.deposit('ADX', 770, (err) => {
-  if (err) console.log(err);
-  else {
-    console.log('yeah');
-  }
-});
+// myWebsites.bittrex.deposit('ADX', 770, (err) => {
+//   if (err) console.log(err);
+//   else {
+//     console.log('yeah');
+//   }
+// });
 
 // TS.sendToken('ADX', '0xe4573b8bab07aaedce70605e578110979df16442', 461.31, {}, (err, hash) => {
 //   if (err) console.log(err);
@@ -73,12 +73,12 @@ myWebsites.bittrex.deposit('ADX', 770, (err) => {
 //   }
 // });
 
-// myWebsites.etherdelta.deposit('EOS', 59.025, (err) => {
-//   if (err) console.log(err);
-//   else {
-//     console.log('yeah');
-//   }
-// });
+myWebsites.etherdelta.deposit('ETH', 0.52, (err) => {
+  if (err) console.log(err);
+  else {
+    console.log('yeah');
+  }
+});
 
 // myWebsites.bittrex.withdraw('FUN', 5364.05125556, (err) => {
 //   if (err) console.log(err);

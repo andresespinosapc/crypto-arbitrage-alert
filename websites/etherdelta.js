@@ -59,9 +59,11 @@ class EtherDelta extends Website{
       return;
     }
     if (tokenAddr.slice(0, 39) === '0x0000000000000000000000000000000000000') {
-      this.transactor.getBalance('ETH', (err, balance) => {
+      utility.getBalance(this.transactor.web3, this.transactor.address, (err, balance) => {
         if (err) callback(err);
         else {
+          console.log(amount);
+          console.log(balance);
           if (amount.gt(balance) && amount.lt(balance.times(new BigNumber(1.1)))) amount = balance;
           if (amount.lte(balance)) {
             utility.send(
