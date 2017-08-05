@@ -27,10 +27,24 @@ let myWebsites = {
   liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
 }
 
-TS.sendToken('ADX', '0xe4573b8bab07aaedce70605e578110979df16442', 461.31, {}, (err, hash) => {
+// TS.moveCoin(myWebsites.etherdelta, myWebsites.bittrex, 'ADX', 770, (err) => {
+//   if (err) console.log(err);
+//   else {
+//     console.log('yeah');
+//   }
+// });
+
+myWebsites.bittrex.deposit('ADX', 770, (err) => {
   if (err) console.log(err);
-    console.log('yeah', hash);
+  else {
+    console.log('yeah');
+  }
 });
+
+// TS.sendToken('ADX', '0xe4573b8bab07aaedce70605e578110979df16442', 461.31, {}, (err, hash) => {
+//   if (err) console.log(err);
+//     console.log('yeah', hash);
+// });
 
 // myWebsites.etherdelta.waitForOrder('sell', 'ETH', 'EOS', '2126580151', (err) => {
 //   if (err) console.log(err);

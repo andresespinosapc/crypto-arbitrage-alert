@@ -194,7 +194,7 @@ TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, value, c
     else {
       console.log('Withdrawal successful');
       // Get current balance from the final website
-      finalWebsite.deposit(TS, currency, value, (err) => {
+      finalWebsite.deposit(currency, value, (err) => {
         if (err) callback(err);
         else {
           console.log('Deposit successful');

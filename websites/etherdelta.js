@@ -394,9 +394,117 @@ class EtherDelta extends Website{
     return Math.random().toString().slice(2) + Math.random().toString().slice(2);
   }
 
-  sell(){}
-
-  buy(){}
+  trade(type, order, inputAmount, callback) {
+    let amount;
+    if (type === 'sell') {
+      // if I'm selling a bid, the buyer is getting the token
+      amount = new BigNumber(utility.ethToWei(inputAmount, this.getDivisor(order.tokenGet)));
+    } else if (type === 'buy') {
+      // if I'm buying an offer, the seller is getting
+      // the base and giving the token, so must convert to get terms
+      amount = new BigNumber(utility.ethToWei(
+        inputAmount * (Number(order.amountGet) / Number(order.amountGive)),
+        this.getDivisor(order.tokenGive)));
+    } else {
+      return;
+    }
+    utility.call(
+      this.transactor.web3,
+      this.contractEtherDelta,
+      this.config.contractEtherDeltaAddr,
+      'balanceOf',
+      [order.tokenGet, this.transactor.address],
+      (err, result) => {
+        const availableBalance = result;
+        utility.call(
+          this.transactor.web3,
+          this.contractEtherDelta,
+          this.config.contractEtherDeltaAddr,
+          'availableVolume',
+          [
+            order.tokenGet,
+            Number(order.amountGet),
+            order.tokenGive,
+            Number(order.amountGive),
+            Number(order.expires),
+            Number(order.nonce),
+            order.user,
+            Number(order.v),
+            order.r,
+            order.s,
+          ],
+          (errAvailableVolume, resultAvailableVolume) => {
+            const availableVolume = resultAvailableVolume;
+            if (amount.gt(availableBalance.divToInt(1.0031))) {
+              // balance adjusted for fees (0.0001 to avoid rounding error)
+              amount = availableBalance.divToInt(1.0031);
+            }
+            if (amount.gt(availableVolume)) amount = availableVolume;
+            let v = Number(order.v);
+            let r = order.r;
+            let s = order.s;
+            if (!(v && r && s)) {
+              v = 0;
+              r = '0x0';
+              s = '0x0';
+            }
+            utility.call(
+              this.transactor.web3,
+              this.contractEtherDelta,
+              this.config.contractEtherDeltaAddr,
+              'testTrade',
+              [
+                order.tokenGet,
+                Number(order.amountGet),
+                order.tokenGive,
+                Number(order.amountGive),
+                Number(order.expires),
+                Number(order.nonce),
+                order.user,
+                v,
+                r,
+                s,
+                amount,
+                this.transactor.address,
+              ],
+              (errTestTrade, resultTestTrade) => {
+                if (resultTestTrade && amount > 0) {
+                  utility.send(
+                    this.transactor.web3,
+                    this.contractEtherDelta,
+                    this.config.contractEtherDeltaAddr,
+                    'trade',
+                    [
+                      order.tokenGet,
+                      Number(order.amountGet),
+                      order.tokenGive,
+                      Number(order.amountGive),
+                      Number(order.expires),
+                      Number(order.nonce),
+                      order.user,
+                      v,
+                      r,
+                      s,
+                      amount,
+                      { gas: this.config.gasTrade, value: 0 },
+                    ],
+                    this.transactor.address,
+                    this.transactor.privateKey,
+                    this.nonce,
+                    (errSend, resultSend) => {
+                      this.nonce = resultSend.nonce;
+                      callback(undefined, resultSend.txHash);
+                    });
+                } else if (utility.weiToEth(availableVolume,
+                this.getDivisor(this.selectedToken)) < this.minOrderSize) {
+                  callback('Order already traded');
+                } else {
+                  callback('Not enough funds');
+                }
+              });
+          });
+      });
+  };
 
   order(direction, amount, price, baseCurrency, tradeCurrency, expires, refresh, callback) {
     const baseToken = utils.getToken(baseCurrency);
@@ -539,7 +647,7 @@ class EtherDelta extends Website{
           else {
             // onchain order
             utility.send(
-              this.web3,
+              this.transactor.web3,
               this.contractEtherDelta,
               this.config.contractEtherDeltaAddr,
               'order',

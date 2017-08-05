@@ -35,7 +35,53 @@ let pool = mysql.createPool({
 // Create a bot that uses 'polling' to fetch new updates
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, {polling: true});
 
-bot.onText(/(buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
+bot.onText(/move (.+) (.+) from (.+) to (.+)/, (msg, match) => {
+  if (msg.chat.id == TELEGRAM_CHAT_ID) {
+    let amount = parseFloat(match[1]);
+    let token = match[2];
+    let initialWebsite = match[3];
+    let finalWebsite = match[4];
+
+    TS.moveCoin(myWebsites[initialWebsite], myWebsites[finalWebsite], token, amount, (err) => {
+      if (err) bot.sendMessage(userSettings.chatId, err);
+      else {
+        bot.sendMessage(userSettings.chatId, 'Your coin movement has finished');
+      }
+    });
+  }
+});
+
+bot.onText(/withdraw (.+) (.+) from (.+)/, (msg, macth) => {
+  if (msg.chat.id == TELEGRAM_CHAT_ID) {
+    let amount = parseFloat(match[1]);
+    let token = match[2];
+    let website = match[3];
+
+    myWebsites[website].withdraw(token, amount, (err) => {
+      if (err) bot.sendMessage(userSettings.chatId, err);
+      else {
+        bot.sendMessage(userSettings.chatId, 'Withdrawal successful');
+      }
+    });
+  }
+});
+
+bot.onText(/deposit (.+) (.+) on (.+)/, (msg, macth) => {
+  if (msg.chat.id == TELEGRAM_CHAT_ID) {
+    let amount = parseFloat(match[1]);
+    let token = match[2];
+    let website = match[3];
+
+    myWebsites[website].deposit(token, amount, (err) => {
+      if (err) bot.sendMessage(userSettings.chatId, err);
+      else {
+        bot.sendMessage(userSettings.chatId, 'Deposit successful');
+      }
+    });
+  }
+});
+
+bot.onText(/order (buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
   if (msg.chat.id == TELEGRAM_CHAT_ID) {
     let direction = match[1];
     let amount = parseFloat(match[2]);
@@ -43,11 +89,11 @@ bot.onText(/(buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
     let price = parseFloat(match[4]);
 
     myWebsites.etherdelta.order(direction, amount, price, 'ETH', token, 10000, false, (err, orderNonce) => {
-      if (err) console.log(err);
+      if (err) bot.sendMessage(userSettings.chatId, err);
       else {
         console.log('Order placed with nonce: ' + orderNonce);
         myWebsites.etherdelta.waitForOrder(direction, 'ETH', token, orderNonce, (err) => {
-          if (err) console.log(err);
+          if (err) bot.sendMessage(userSettings.chatId, err);
           else {
             bot.sendMessage(userSettings.chatId, 'Termino tu orden');
           }
