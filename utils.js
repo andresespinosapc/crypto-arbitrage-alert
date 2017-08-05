@@ -94,15 +94,6 @@ utils.hexToDec = function hexToDec(hexStrIn, length) {
   return answer > max / 2 ? max : answer;
 };
 
-utils.getDivisor = function getDivisor(tokenOrAddress) {
-  let result = 1000000000000000000;
-  const token = API.getToken(tokenOrAddress);
-  if (token && token.decimals >= 0) {
-    result = Math.pow(10, token.decimals); // eslint-disable-line no-restricted-properties
-  }
-  return new BigNumber(result);
-};
-
 utils.ordersByPair = function(orders, addressA, addressB, n)
 {
   const topNOrders = [];

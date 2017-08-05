@@ -110,7 +110,7 @@ TS.getBalance = function(tokenIdentifier, callback) {
 
 TS.waitForBalance = function(tokenIdentifier, amount, callback) {
   let token = utils.getToken(tokenIdentifier);
-  let amount = new BigNumber(Number(utility.ethToWei(amount, utils.getDivisor(token.addr))));
+  amount = new BigNumber(Number(utility.ethToWei(amount, utils.getDivisor(token.addr))));
   this.getBalance(tokenIdentifier, (err, balance) => {
     if (err) callback(err);
     else {
@@ -211,7 +211,7 @@ TS.moveCoin = function moveCoin(initialWebsite, finalWebsite, currency, amount, 
     if (err) callback(err);
     else {
       console.log('Withdrawal successful');
-      let tranferredAmount = amount / 1.0031;
+      let tranferredAmount = amount / 1.01;
       this.waitForBalance(currency, tranferredAmount, (err) => {
         if (err) callback(err);
         else {
