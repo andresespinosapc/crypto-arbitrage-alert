@@ -42,6 +42,11 @@ class EtherDelta extends Website{
     this.eventsCache = {};
   }
 
+  getWithdrawalFee(currency, amount, callback) {
+    // Fee is discounted from main account
+    callback(undefined, 0);
+  }
+
   deposit(currency, value, callback) {
     const token = utils.getToken(currency);
     const tokenAddr = token.addr;

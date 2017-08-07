@@ -52,6 +52,22 @@ class Liqui extends Website {
     callback(undefined, this.depositAddresses[currency]);
   }
 
+  getWithdrawalFee(currency, amount, callback) {
+    request('https://api.liqui.io/api/3/info', {}, (err, res) => {
+      if (err) callback(err);
+      else {
+        let name = currency.toLowerCase() + '_eth';
+        let currencyInfo = res.result.pairs[name];
+        if (currencyInfo) {
+          callback(undefined, currencyInfo.fee);
+        }
+        else {
+          callback('Invalid currency');
+        }
+      }
+    });
+  }
+
   getBalances(callback) {
     this.request('https://api.liqui.io/api/3/getInfo', {}, (err, response, body) => {
       if (err) callback(err);
