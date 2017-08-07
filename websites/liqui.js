@@ -23,12 +23,33 @@ class Liqui extends Website {
     }
 
     request(options, (err, response, body) => {
-      callback(err, response, body);
+      let res = JSON.parse(body);
+      if (err) callback(err);
+      else if (!res.success) callback(res.error);
+      else callback(undefined, res);
+    });
+  }
+
+  getTickerPromise(currency, callback) {
+    return new Promise((resolve, reject) => {
+      let name = currency.toLowerCase() + '_eth';
+      this.request('https://api.liqui.io/api/3/ticker/' + name, {}, (err, res) => {
+        if (err) reject(err);
+        else {
+          let data = res[name];
+          resolve({
+            last: data.last,
+            ask: data.sell,
+            bid: data.buy,
+            dailyVolume: data.vol
+          });
+        }
+      });
     });
   }
 
   getDepositAddress(currency, callback) {
-    return this.depositAddresses;
+    callback(undefined, this.depositAddresses[currency]);
   }
 
   getBalances(callback) {

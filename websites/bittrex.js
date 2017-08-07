@@ -31,12 +31,12 @@ class Bittrex extends Website {
       let res = JSON.parse(body);
       if (err) callback(err);
       else if (!res.success) callback(res.message);
-      else callback(null, res);
+      else callback(undefined, res);
     });
   }
 
   getWithdrawalFee(currency, amount, callback) {
-    request('https://bittrex.com/api/v1.1/public/getcurrencies', (err, res) => {
+    request('https://bittrex.com/api/v1.1/public/getcurrencies', {}, (err, res) => {
       if (err) callback(err);
       else {
         let currencies = res.result;
@@ -51,7 +51,23 @@ class Bittrex extends Website {
     });
   }
 
-  getTicker() {}
+  getTickerPromise(currency, callback) {
+    return new Promise((resolve, reject) => {
+      this.request('https://bittrex.com/api/v1.1/public/getticker', {
+        market: 'ETH-' + coin
+      }, (err, res) => {
+        if (err) reject(err);
+        else {
+          let data = res.result;
+          resolve({
+            last: data.Last,
+            ask: data.Ask,
+            bid: data.Bid
+          });
+        }
+      });
+    });
+  }
 
   getDepositAddress(currency, callback) {
     this.request('https://bittrex.com/api/v1.1/account/getdepositaddress', {

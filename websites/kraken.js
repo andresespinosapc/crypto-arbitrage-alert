@@ -24,7 +24,34 @@ class Kraken extends Website {
     }
 
     request(options, (err, response, body) => {
-      callback(err, response, body);
+      let res = JSON.parse(body);
+      if (err) callback(err);
+      else if (res.error.length > 0) callback(res.error[0]);
+      else callback(undefined, res);
+    });
+  }
+
+  getTickerPromise(currency, callback) {
+    return new Promise((resolve, reject) => {
+      this.request('https://api.kraken.com/0/public/Ticker', {
+        pair: currency.toLowerCase() + 'eth'
+      }, (err, res) => {
+        if (err) callback(err);
+        else {
+          let data = res.result[currency + 'ETH'];
+          try {
+            resolve({
+              last: data.c[0],
+              ask: data.a[0],
+              bid: data.b[0],
+              dailyVolume: data.v[1]
+            });
+          }
+          catch (err) {
+            reject('Some data is missing');
+          }
+        }
+      });
     });
   }
 }
