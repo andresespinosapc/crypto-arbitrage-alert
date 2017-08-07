@@ -65,8 +65,10 @@ let mainLoop = (pool, bot, userSettings, myWebsites) => {
         let diff = bid / ask;
         logger.info('Found a difference of ' + diff + ' on ' + coinName);
         if (diff >= 1.1) {
-          let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
-          sendBasedOnSetting('etherdeltaDiffAlert', message, bot, userSettings);
+          if (coinName != 'Droplex Token') {
+            let message = `URGENTE: Hay una diferencia de ${diff} en ${coinName} en etherdelta`;
+            sendBasedOnSetting('etherdeltaDiffAlert', message, bot, userSettings);
+          }
         }
       });
 
