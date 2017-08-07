@@ -17,6 +17,8 @@ class Website {
       }
     });
   }
+
+  waitForDeposit(txHash, callback) { callback('Not implemented') }
 }
 
 module.exports = Website;

@@ -129,21 +129,21 @@ TS.waitForBalance = function(tokenIdentifier, amount, callback) {
 TS.sendEth = function (to, amount, options, callback) {
   let func = function(web3In, privateKey, nonce) {
     gasPrice = "gasPrice" in options ?
-    '0x'+new BigNumber(web3.toWei(options.gasPrice, 'gwei')).toString(16):
+    '0x'+new BigNumber(web3In.toWei(options.gasPrice, 'gwei')).toString(16):
     defaultGasPrice;
     var params = {
       nonce:nonce,
       gasPrice:gasPrice,
       gasLimit:"gasLimit" in options ? options.gasLimit:defaultGasLimit,
       to:to,
-      amount: '0x'+new BigNumber(web3.toWei(amount, 'ether')).toString(16),
+      amount: '0x'+new BigNumber(web3In.toWei(amount, 'ether')).toString(16),
       data:"data" in options ? options.data:''
     };
     let tx = new Tx(params);
     console.log(params);
     tx.sign(privateKey);
     let serializedTx = tx.serialize();
-    web3.eth.sendRawTransaction('0x' + serializedTx.toString('hex'),
+    web3In.eth.sendRawTransaction('0x' + serializedTx.toString('hex'),
     (err,txHash)=>{
       if(err) callback(err);
       else {callback(undefined, txHash);}
@@ -189,7 +189,7 @@ TS.sendToken = function(tokenIdentifier, to, amount, options, callback) {
     amount = utils.amountToarg(amount, token.decimals)
     let callData = func.getData(to, amount)
     options.data = callData;
-    this.transact(token.addr, options.value, options, (err,txHash)=>{
+    this.transact('ETH', token.addr, options.value, options, (err,txHash)=>{
       if(err) callback(err);
       else callback(undefined, txHash);
     })

@@ -24,8 +24,18 @@ let sendTelegramMessage = async (message) => {
 let myWebsites = {
   etherdelta: new websites.EtherDelta(TS),
   bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
-  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET)
+  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET, {
+    'ETH': '0xfea012e2ef9b0894ac658630abc145ba27b76099',
+    'ADX': '0xe4573b8bab07aaedce70605e578110979df16442'
+  })
 }
+
+myWebsites.liqui.deposit('ADX', 1100, (err) => {
+  if (err) console.log(err);
+  else {
+    console.log('yeah');
+  }
+});
 
 // TS.getBalance('ETH', (err, balance) => {
 //   if (err) console.log(err);
