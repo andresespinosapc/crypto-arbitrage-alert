@@ -110,7 +110,7 @@ TS.getBalance = function(tokenIdentifier, callback) {
 
 TS.waitForBalance = function(tokenIdentifier, amount, callback) {
   let token = utils.getToken(tokenIdentifier);
-  amount = new BigNumber(Number(utility.ethToWei(amount, utils.getDivisor(token.addr))));
+  amount = new BigNumber(Number(utils.ethToWei(amount, utils.getDivisor(token.addr))));
   this.getBalance(tokenIdentifier, (err, balance) => {
     if (err) callback(err);
     else {
@@ -197,12 +197,17 @@ TS.sendToken = function(tokenIdentifier, to, amount, options, callback) {
 }
 
 TS.transact = function(tokenIdentifier, to, amount, options, callback) {
-  let token = utils.getToken(tokenIdentifier);
-  if (token.name == 'ETH') {
-    this.sendEth(to, amount, options, callback);
+  if (to) {
+    let token = utils.getToken(tokenIdentifier);
+    if (token.name == 'ETH') {
+      this.sendEth(to, amount, options, callback);
+    }
+    else {
+      this.sendToken(token.addr, to, amount, options, callback);
+    }
   }
   else {
-    this.sendToken(token.addr, to, amount, options, callback);
+    callback('No deposit address provided');
   }
 }
 
