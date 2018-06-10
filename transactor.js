@@ -8,7 +8,7 @@ const defaultGasPrice = 2 // 2 gWei
 const defaultGasLimit = 100000 // 100.000
 const ethAddress ='0x0000000000000000000000000000000000000000'
 const etherScanUri= 'https://api.etherscan.io/api'
-const etherScanApiKey = 'TYM3NSAF9RIAFSNRU5RZJQHI71C784FNK6' // TODO temporal
+const etherScanApiKey = process.env.ETHERSCAN_KEY
 
 
 function TS() {}

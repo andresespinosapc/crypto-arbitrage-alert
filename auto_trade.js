@@ -1,20 +1,19 @@
 const websites = require('./websites/exports.js');
 const TS = require('./transactor.js');
 const request = require('request');
+const { TELEGRAM_CHAT_IDS, TELEGRAM_BOT_TOKEN, LIQUI_DEPOSIT_ADDRS } = require('./constants.js');
 
-const liquiEthAddr = '0xfea012e2ef9b0894ac658630abc145ba27b76099';
 
 var privateKey = Buffer.from(process.env.PRIV, 'hex');
 TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
 
-let TELEGRAM_CHAT_ID = 8834684;
-let TELEGRAM_BOT_TOKEN = '423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU';
 
 let sendTelegramMessage = async (message) => {
   let options = {
     uri: `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
     qs: {
-      'chat_id': TELEGRAM_CHAT_ID,
+      // TEMP
+      'chat_id': TELEGRAM_CHAT_IDS[0],
       'text': message
     }
   }
@@ -24,10 +23,7 @@ let sendTelegramMessage = async (message) => {
 let myWebsites = {
   etherdelta: new websites.EtherDelta(TS),
   bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
-  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET, {
-    'ETH': '0xfea012e2ef9b0894ac658630abc145ba27b76099',
-    'ADX': '0xe4573b8bab07aaedce70605e578110979df16442'
-  })
+  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET, LIQUI_DEPOSIT_ADDRS)
 }
 
 myWebsites.liqui.deposit('ADX', 1100, (err) => {

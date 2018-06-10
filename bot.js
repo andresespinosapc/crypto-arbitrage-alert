@@ -4,6 +4,7 @@ const mysql = require('mysql');
 const TS = require('./transactor.js');
 const websites = require('./websites/exports.js');
 const fs = require('fs');
+const { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_IDS, LIQUI_DEPOSIT_ADDRS } = require('./constants.js');
 
 
 let privateKey = Buffer.from(process.env.PRIV, 'hex');
@@ -11,20 +12,12 @@ TS.init("https://mainnet.infura.io/" + process.env.INFURA_TOKEN, privateKey);
 let myWebsites = {
   etherdelta: new websites.EtherDelta(TS),
   bittrex: new websites.Bittrex(TS, process.env.BITTREX_KEY, process.env.BITTREX_SECRET),
-  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET, {
-    'ETH': '0xfea012e2ef9b0894ac658630abc145ba27b76099',
-    'ADX': '0xe4573b8bab07aaedce70605e578110979df16442'
-  })
+  liqui: new websites.Liqui(TS, process.env.LIQUI_KEY, process.env.LIQUI_SECRET, LIQUI_DEPOSIT_ADDRS)
 }
 
-const TELEGRAM_BOT_TOKEN = '423299318:AAGSZaf9hy8_KNy2QAtLebSA_9uJovuc4sU';
-let telegramChatIds = [
-  8834684,
-  139887252
-]
 let userSettings = {};
 userSettings['global'] = JSON.parse(fs.readFileSync('user_settings/global.json', 'utf8'));
-telegramChatIds.forEach((chatId) => {
+TELEGRAM_CHAT_IDS.forEach((chatId) => {
   userSettings[chatId] = JSON.parse(fs.readFileSync(`user_settings/${chatId}.json`, 'utf8'));
 });
 
@@ -67,7 +60,8 @@ bot.onText(/move (.+) (.+) from (.+) to (.+)/, (msg, match) => {
 });
 
 bot.onText(/withdraw (.+) (.+) from (.+)/, (msg, match) => {
-  if (msg.chat.id == 8834684) {
+  // TEMP
+  if (msg.chat.id == TELEGRAM_CHAT_IDS[0]) {
     let amount = parseFloat(match[1]);
     let token = match[2];
     let website = match[3];
@@ -82,7 +76,8 @@ bot.onText(/withdraw (.+) (.+) from (.+)/, (msg, match) => {
 });
 
 bot.onText(/deposit (.+) (.+) on (.+)/, (msg, match) => {
-  if (msg.chat.id == 8834684) {
+  // TEMP
+  if (msg.chat.id == TELEGRAM_CHAT_IDS[0]) {
     let amount = parseFloat(match[1]);
     let token = match[2];
     let website = match[3];
@@ -99,7 +94,8 @@ bot.onText(/deposit (.+) (.+) on (.+)/, (msg, match) => {
 });
 
 bot.onText(/order (buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
-  if (msg.chat.id == 8834684) {
+  // TEMP
+  if (msg.chat.id == TELEGRAM_CHAT_IDS[0]) {
     let direction = match[1];
     let amount = parseFloat(match[2]);
     let token = match[3];
@@ -121,7 +117,8 @@ bot.onText(/order (buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
 });
 
 bot.onText(/(buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
-  if (msg.chat.id == 8834684) {
+  // TEMP
+  if (msg.chat.id == TELEGRAM_CHAT_IDS[0]) {
     let direction = match[1];
     let amount = parseFloat(match[2]);
     let token = match[3];
@@ -144,7 +141,7 @@ bot.onText(/(buy|sell) (.+) (.+) at (.+)/, (msg, match) => {
 });
 
 bot.onText(/toggle ethdelta cheap/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     userSettings[msg.chat.id].etherdeltaCheapAlert = !userSettings[msg.chat.id].etherdeltaCheapAlert;
     let currentState = (userSettings[msg.chat.id].etherdeltaCheapAlert) ? 'ON' : 'OFF';
     bot.sendMessage(msg.chat.id, 'Ok, now it is ' + currentState);
@@ -153,7 +150,7 @@ bot.onText(/toggle ethdelta cheap/, (msg, match) => {
 });
 
 bot.onText(/toggle ethdelta diff/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     userSettings[msg.chat.id].etherdeltaDiffAlert = !userSettings[msg.chat.id].etherdeltaDiffAlert;
     let currentState = (userSettings[msg.chat.id].etherdeltaDiffAlert) ? 'ON' : 'OFF';
     bot.sendMessage(msg.chat.id, 'Ok, now it is ' + currentState);
@@ -162,7 +159,7 @@ bot.onText(/toggle ethdelta diff/, (msg, match) => {
 });
 
 bot.onText(/toggle arbitrage/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     userSettings[msg.chat.id].arbitrageAlert = !userSettings[msg.chat.id].arbitrageAlert;
     let currentState = (userSettings[msg.chat.id].arbitrageAlert) ? 'ON' : 'OFF';
     bot.sendMessage(msg.chat.id, 'Ok, now it is ' + currentState);
@@ -171,7 +168,7 @@ bot.onText(/toggle arbitrage/, (msg, match) => {
 });
 
 bot.onText(/add coin (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     const coinName = match[1];
     userSettings['global'].coins.push(coinName);
     bot.sendMessage(msg.chat.id, `Coin ${coinName} added. ${JSON.stringify(userSettings[msg.chat.id].coins)}`);
@@ -180,7 +177,7 @@ bot.onText(/add coin (.+)/, (msg, match) => {
 });
 
 bot.onText(/remove coin (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     const coinName = match[1];
     let index = userSettings['global'].coins.indexOf(coinName);
     if (index > -1) {
@@ -195,7 +192,7 @@ bot.onText(/remove coin (.+)/, (msg, match) => {
 });
 
 bot.onText(/remove blacklist (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     const arg = match[1];
     let index = userSettings[msg.chat.id].blacklist.indexOf(arg);
     if (index > -1) {
@@ -210,7 +207,7 @@ bot.onText(/remove blacklist (.+)/, (msg, match) => {
 });
 
 bot.onText(/blacklist (.+)/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     const arg = match[1];
     userSettings[msg.chat.id].blacklist.push(arg);
     bot.sendMessage(msg.chat.id, 'Ok, added. ' + JSON.stringify(userSettings[msg.chat.id].blacklist));
@@ -219,13 +216,13 @@ bot.onText(/blacklist (.+)/, (msg, match) => {
 });
 
 bot.onText(/show coins/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     bot.sendMessage(msg.chat.id, JSON.stringify(userSettings['global'].coins));
   }
 });
 
 bot.onText(/show blacklist/, (msg, match) => {
-  if (telegramChatIds.indexOf(msg.chat.id) != -1) {
+  if (TELEGRAM_CHAT_IDS.indexOf(msg.chat.id) != -1) {
     bot.sendMessage(msg.chat.id, JSON.stringify(userSettings[msg.chat.id].blacklist));
   }
 });

@@ -6,7 +6,7 @@ const BigNumber = require('bignumber.js');
 const async = require('async');
 const request = require('request');
 const etherScanUri = 'https://api.etherscan.io/api'
-const etherScanApiKey = 'TYM3NSAF9RIAFSNRU5RZJQHI71C784FNK6' // TODO temporal
+const etherScanApiKey = process.env.ETHERSCAN_KEY
 const locks = require('locks');
 const sha256 = require('js-sha256').sha256;
 

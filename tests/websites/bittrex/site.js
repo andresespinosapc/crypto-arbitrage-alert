@@ -8,8 +8,8 @@ const fs = require('fs');
 const Bittrex = require(projectPath + './websites/bittrex');
 const ts = require(projectPath + './transactor');
 
-const bittrexApi = '138fae0cd15142d0a26c3ed3e7895296';
-const bittrexSecret = '0e45956b532c4db49a680be7c92a1373';
+const bittrexApi = process.env.BITTREX_EY;
+const bittrexSecret = process.env.BITTREX_API;
 
 let privateKey = Buffer.from(fs.readFileSync('/Users/sebamenabar/.eth_keys/odins_second', 'utf8').trim(), 'hex');
 let infuraToken = fs.readFileSync('/Users/sebamenabar/.eth_keys/infura_token', 'utf8').trim();
